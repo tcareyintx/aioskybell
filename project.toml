@@ -1,5 +1,5 @@
 [tool.pylint.MASTER]
-py-version = "3.12"
+py-version = "3.13"
 load-plugins = [
     "pylint.extensions.code_style",
     "pylint.extensions.typing",

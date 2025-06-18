@@ -23,7 +23,9 @@ from .device import SkybellDevice
 from .exceptions import SkybellAuthenticationException, SkybellException
 from .helpers import const as CONST
 from .helpers import errors as ERROR
-from .helpers.models import DeviceTypeDict, EventTypeDict
+from .helpers.models import DeviceData
+from pickle import FALSE
+from aioskybell.helpers.models import DevicesDict, DeviceType
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -62,7 +64,7 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
         self._user: dict[str, str] = {}
 
         # Create a new cache template
-        self._cache: dict[str, str | dict[str, EventTypeDict]] = {
+        self._cache: dict[str, str | dict[str, DeviceType]] = {
             CONST.APP_ID: UTILS.gen_id(),
             CONST.CLIENT_ID: UTILS.gen_id(),
             CONST.TOKEN: UTILS.gen_token(),
@@ -89,8 +91,13 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
             and self._auto_login
         ):
             await self.async_login()
-        self._user = await self.async_send_request(CONST.USERS_ME_URL)
-        return await self.async_get_devices()
+        # Obtain the user data
+        self._user = await self.async_send_request(CONST.USER_URL)
+        if self._user is not None:
+            # Obtain the devices for the user
+            return await self.async_get_devices()
+        else:
+            return {}
 
     async def async_login(
         self, username: str | None = None, password: str | None = None
@@ -116,22 +123,29 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
         }
 
         response = await self.async_send_request(
-            CONST.LOGIN_URL, json=login_data, method=CONST.HTTPMethod.POST, retry=False
+            url=CONST.LOGIN_URL, json=login_data, method=CONST.HTTPMethod.POST, retry=False
         )
 
-        _LOGGER.debug("Login Response: %s", response)
-
-        await self.async_update_cache(
-            {CONST.ACCESS_TOKEN: response[CONST.ACCESS_TOKEN]}
-        )
-
-        if self._login_sleep:
-            _LOGGER.info("Login successful, waiting 5 seconds...")
-            await asyncio.sleep(5)
+        if response is None:
+            return False
+        elif CONST.AUTHENTICATION_RESULT not in response:
+            return False
         else:
-            _LOGGER.info("Login successful")
+            _LOGGER.debug("Login Response: %s", response)
+            # Store the Authorization result
+            auth_result = response[CONST.AUTHENTICATION_RESULT]
+            token = auth_result[CONST.ACCESS_TOKEN]
+            await self.async_update_cache(
+                {CONST.ACCESS_TOKEN: token}
+            )
 
-        return True
+            if self._login_sleep:
+                _LOGGER.info("Login successful, waiting 5 seconds...")
+                await asyncio.sleep(5)
+            else:
+                _LOGGER.info("Login successful")
+
+            return True
 
     async def async_logout(self) -> bool:
         """Explicit Skybell logout."""
@@ -152,16 +166,14 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
         if refresh or len(self._devices) == 0:
             _LOGGER.info("Updating all devices...")
             response = await self.async_send_request(CONST.DEVICES_URL)
-
             _LOGGER.debug("Get Devices Response: %s", response)
-
-            for device_json in response:
-                # Attempt to reuse an existing device
-                device = self._devices.get(device_json[CONST.ID])
+            response_rows = response[CONST.RESPONSE_ROWS]
+            for device_json in response_rows:
+                device = self._devices.get(device_json[CONST.DEVICE_ID])
 
                 # No existing device, create a new one
                 if device:
-                    await device.async_update({device_json[CONST.ID]: device_json})
+                    await device.async_update({device_json[CONST.DEVICE_ID]: device_json})
                 else:
                     device = SkybellDevice(device_json, self)
                     self._devices[device.device_id] = device
@@ -188,17 +200,17 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
     @property
     def user_id(self) -> str:
         """Return logged in user id."""
-        return self._user[CONST.ID]
+        return self._user[CONST.USER_ID]
 
     @property
     def user_first_name(self) -> str:
         """Return logged in user first name."""
-        return self._user["firstName"]
+        return self._user[CONST.FIRST_NAME]
 
     @property
     def user_last_name(self) -> str:
         """Return logged in user last name."""
-        return self._user["lastName"]
+        return self._user[CONST.LAST_NAME]
 
     async def async_send_request(  # pylint:disable=too-many-arguments
         self,
@@ -210,16 +222,19 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
     ) -> Any:
         """Send requests to Skybell."""
         if len(self.cache(CONST.ACCESS_TOKEN)) == 0 and url != CONST.LOGIN_URL:
-            await self.async_login()
+            response = await self.async_login()
+            if response is False:
+                _LOGGER.exception("Failed login unable to send request: %s", url)
+                return None
 
         headers = headers if headers else {}
-        if "cloud.myskybell.com" in url:
+        if (CONST.BASE_AUTH_DOMAIN in url or
+                CONST.BASE_API_DOMAIN in url):
             if len(self.cache(CONST.ACCESS_TOKEN)) > 0:
                 headers["Authorization"] = f"Bearer {self.cache(CONST.ACCESS_TOKEN)}"
             headers["content-type"] = "application/json"
             headers["accept"] = "*/*"
-            headers["x-skybell-app-id"] = cast(str, self.cache(CONST.APP_ID))
-            headers["x-skybell-client-id"] = cast(str, self.cache(CONST.CLIENT_ID))
+            headers["x-skybell-app"] = CONST.APP_VERSION
 
         _LOGGER.debug("HTTP %s %s Request with headers: %s", method, url, headers)
 
@@ -247,15 +262,19 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
                 )
             raise SkybellException from ex
         if response.content_type == "application/json":
-            return await response.json()
-        return await response.read()
+            local_response = await response.json()
+        else:
+            local_response = await response.read()
+        # Now we have a local response which could be 
+        # a read dictionary or json dictionary
+        return local_response.get(CONST.RESPONSE_DATA)
 
     def cache(self, key: str) -> str | Collection[str]:
         """Get a cached value."""
         return self._cache.get(key, "")
 
     async def async_update_cache(
-        self, data: dict[str, str] | dict[str, DeviceTypeDict]
+        self, data: dict[str, str] | dict[str, DevicesDict]
     ) -> None:
         """Update a cached value."""
         UTILS.update(self._cache, data)

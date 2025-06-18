@@ -1,101 +1,125 @@
 """Models for Skybell."""
 from __future__ import annotations
 
-from datetime import datetime
+class MotionZoneData(dict):
+    """Class for Motion zone object permitted for the device. 
+       See /api/v5/devices/DEVICE_ID/settings"""
 
+    ignore: bool | None
+    sensitivity: int | None
 
-class InfoDict(dict):
-    """Class for info."""
+class MotionZoneConfigData(dict):
+    """Class for Motion zone settings (motion_zone_config) 
+       permitted for the device. 
+       See /api/v5/devices/DEVICE_ID/settings"""
 
-    address: str
-    checkedInAt: str
-    clientId: str
-    deviceId: str
-    essid: str
-    firmwareVersion: str
-    hardwareRevision: str
-    localHostname: str
-    mac: str
-    port: str
-    proxy_address: str
-    proxy_port: str
-    region: str
-    serialNo: str
-    status: dict[str, str]
-    timestamp: str
-    wifiBitrate: str
-    wifiLinkQuality: str
-    wifiNoise: str
-    wifiSignalLevel: str
-    wifiTxPwrEeprom: str
+    x: int | None
+    y: int | None
+    threshold: str | None
+    zones: list[list[list[MotionZoneData]]]
 
+# ToDo Need to add the motion zone
+class SettingsData(dict):
+    """Class for settings permitted for the device.
+       See /api/v5/devices/DEVICE_ID/settings"""
 
-class DeviceDict(dict):
-    """Class for device."""
-
-    acl: str
-    createdAt: str
-    deviceInviteToken: str
-    id: str
-    location: dict[str, str]
-    name: str
-    resourceId: str
-    status: str
-    type: str
-    updatedAt: str
-    user: str
-    uuid: str
-
-
-class AvatarDict(dict):
-    """Class for avatar."""
-
-    createdAt: str
-    url: str
-
-
-class SettingsDict(dict):
-    """Class for settings."""
-
-    chime_level: str | None
-    digital_doorbell: str | None
-    do_not_disturb: str | None
-    do_not_ring: str | None
-    green_b: str | None
-    green_g: str | None
-    green_r: str | None
-    high_front_led_dac: str | None
-    high_lux_threshold: str | None
-    led_intensity: str | None
-    low_front_led_dac: str | None
-    low_lux_threshold: str | None
-    med_front_led_dac: str | None
-    med_lux_threshold: str | None
-    mic_volume: str | None
-    motion_policy: str | None
-    motion_threshold: str | None
-    ring_tone: str | None
+    device_name: str | None
+    time_zone: str | None
+    led_color: str | None
+    brightness: int | None
+    indoor_chime: bool | None
+    digital_chime: bool | None
+    outdoor_chime: bool | None
+    outdoor_chime_volume: int | None
+    motion_detection: bool | None
+    debug_motion_detect: bool | None
+    motion_sensitivity: int | None
+    hmbd_sensitivity: int | None
+    fd_sensitivity: int | None
+    fr_sensitivity: int | None
+    image_quality: int | None
+    video_rotation: int | None
     speaker_volume: str | None
-    video_profile: str | None
+    chime_file: str | None
+    motion_zone_config: MotionZoneConfigData | None
 
 
-class EventDict(dict):
-    """Class for an event."""
+class DeviceSettingsData(dict):
+    """Class for device_settings in a retrieved device.
+       See /api/v5/devices/DEVICE_ID"""
+    
+    essid: str
+    ota_type: str
+    model_rev: str
+    mac_address: str
+    ota_version: str
+    ota_signature: str
+    serial_number: str
+    firmware_patch: str
+    firmware_version: str
+    firmare_major_release: str
+    
+class TelemetryData(dict):
+    """Class for telemetry in a retrieved device.
+       See /api/v5/devices/DEVICE_ID"""
+    
+    uptime: str
+    boot_time: str
+    timestamp: str
+    wifi_noise: str
+    link_quality: str
+    signal_level: str
+    wifi_bit_rate: str
+    network_frequency: str
+    
+class SnapshotData(dict):
+    """Class for the device snapshot (avatar) 
+       in a retrieved device. See /api/v5/devices/DEVICE_ID"""
 
-    _id: str
-    callId: str
-    createdAt: datetime
-    device: str
-    event: str
-    id: str
-    media: str
-    mediaSmall: str
-    state: str
-    ttlStartDate: str
-    updatedAt: str
-    videoState: str
+    date_time: str
+    preview: str
 
+class DeviceData(dict):
+    """Class for device.
+       See /api/v5/devices/DEVICE_ID"""
 
-EventTypeDict = dict[str, EventDict]
-DeviceTypeDict = dict[str, dict[str, EventTypeDict]]
-DevicesDict = dict[str, DeviceTypeDict]
+    device_id: str
+    client_id: str
+    account_id: str
+    serial: str
+    certificate_id: str
+    hardware: str
+    firmware: str
+    invite_token: str
+    last_event: str
+    last_connected: str
+    last_disconnected: str
+    lat: str
+    lon: str
+    name: str
+    manufactured: str
+    created_at: str
+    updated_at: str
+    device_settings: DeviceSettingsData
+    telemetry: TelemetryData
+    settings: SettingsData
+
+class ActivityData(dict):
+    """Class for an activity (event).
+       See /api/v5/activities"""
+    
+    event_time: str
+    account_id: str
+    device_id: str
+    device_name: str
+    activity_id: str
+    event_type: str
+    date: str
+    video_url: str
+    image: str
+    edge_tags: str
+    ai_ppe: str
+    
+ActivityType = dict[str, ActivityData]
+DeviceType = dict[str, dict[str, ActivityType]]
+DevicesDict = dict[str, DeviceType]

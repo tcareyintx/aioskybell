@@ -9,18 +9,17 @@ import aiofiles
 from ciso8601 import parse_datetime  # pylint:disable=no-name-in-module
 
 from . import utils as UTILS
-from .exceptions import SkybellAuthenticationException, SkybellException
+from .exceptions import SkybellException
 from .helpers import const as CONST
 from .helpers import errors as ERROR
 
 from .helpers.models import (  # isort:skip
-    AvatarDict,
-    DeviceDict,
-    EventDict,
-    EventTypeDict,
-    InfoDict,
-    SettingsDict,
+    SnapshotData,
+    DeviceData,
+    ActivityData,
+    SettingsData
 )
+from aioskybell.helpers.const import DEVICE_UPTIME, RESPONSE_ROWS
 
 if TYPE_CHECKING:
     from . import Skybell
@@ -33,51 +32,42 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
 
     _skybell: Skybell
 
-    def __init__(self, device_json: DeviceDict, skybell: Skybell) -> None:
+    def __init__(self, device_json: DeviceData, skybell: Skybell) -> None:
         """Set up Skybell device."""
-        self._activities: list[EventDict] = []
-        self._avatar_json = AvatarDict()
-        self._device_id = device_json.get(CONST.ID, "")
+        self._activities: list[ActivityData] = []
+        self._snapshot_json = SnapshotData()
+        self._device_id = device_json.get(CONST.DEVICE_ID, "")
         self._device_json = device_json
-        self._info_json = InfoDict()
-        self._settings_json = SettingsDict()
+        self._settings_json = SettingsData()
         self._skybell = skybell
         self._type = device_json.get(CONST.TYPE, "")
         self.images: dict[str, bytes | None] = {CONST.ACTIVITY: None}
-        self._events: EventTypeDict = {}
 
-    async def _async_device_request(self) -> DeviceDict:
+    async def _async_device_request(self) -> DeviceData:
         url = str.replace(CONST.DEVICE_URL, "$DEVID$", self.device_id)
         return await self._skybell.async_send_request(url)
 
-    async def _async_avatar_request(self) -> AvatarDict:
-        url = str.replace(CONST.DEVICE_AVATAR_URL, "$DEVID$", self.device_id)
+    async def _async_snapshot_request(self) -> SnapshotData:
+        url = str.replace(CONST.DEVICE_SNAPSHOT_URL, "$DEVID$", self.device_id)
         return await self._skybell.async_send_request(url)
-
-    async def _async_info_request(self) -> InfoDict:
-        url = str.replace(CONST.DEVICE_INFO_URL, "$DEVID$", self.device_id)
-        if data := await self._skybell.async_send_request(url):
-            data[CONST.CHECK_IN] = parse_datetime(data.get(CONST.CHECK_IN, ""))
-        return data
 
     async def _async_settings_request(
         self,
         json: dict[str, str | int] | None = None,
         **kwargs: Any,
-    ) -> SettingsDict:
+    ) -> SettingsData:
         url = str.replace(CONST.DEVICE_SETTINGS_URL, "$DEVID$", self.device_id)
         return await self._skybell.async_send_request(url, json=json, **kwargs)
 
-    async def _async_activities_request(self) -> list[EventDict]:
+    async def _async_activities_request(self) -> list[ActivityData]:
         url = str.replace(CONST.DEVICE_ACTIVITIES_URL, "$DEVID$", self.device_id)
-        return await self._skybell.async_send_request(url) or []
+        response = await self._skybell.async_send_request(url)
+        return response.get(RESPONSE_ROWS,[])
 
     async def async_update(  # pylint:disable=too-many-arguments
         self,
         device_json: dict[str, str | dict[str, str]] | None = None,
-        info_json: dict[str, str | dict[str, str]] | None = None,
-        settings_json: dict[str, str | int] | None = None,
-        avatar_json: dict[str, str] | None = None,
+        snapshot_json: dict[str, str] | None = None,
         refresh: bool = True,
         get_devices: bool = False,
     ) -> None:
@@ -87,24 +77,15 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
                 device_json = await self._async_device_request()
             UTILS.update(self._device_json, device_json or {})
 
-        if refresh or avatar_json or len(self._avatar_json) == 0:
-            result = await self._async_avatar_request()
-            if result[CONST.CREATED_AT] != self._avatar_json.get(CONST.CREATED_AT):
-                self.images[CONST.AVATAR] = await self._skybell.async_send_request(
-                    result[CONST.URL]
-                )
-            self._avatar_json = result
-            UTILS.update(self._avatar_json, avatar_json or {})
-
-        if self.acl == CONST.ACLType.OWNER.value:
-            if refresh or info_json or len(self._info_json) == 0:
-                self._info_json = await self._async_info_request()
-                UTILS.update(self._info_json, info_json or {})
-
-        if self.acl != CONST.ACLType.READ.value:
-            if refresh or settings_json or len(self._settings_json) == 0:
-                self._settings_json = await self._async_settings_request()
-                UTILS.update(self._settings_json, settings_json or {})
+        # The Snapshot image is the avatar of the Doorbell
+        if refresh or snapshot_json or len(self._snapshot_json) == 0:
+            result = await self._async_snapshot_request()
+            # Update the image for the avatar snapshot
+            if result[CONST.PREVIEW_CREATED_AT] != self._snapshot_json.get(CONST.PREVIEW_CREATED_AT):
+                self.images[CONST.SNAPSHOT] = result[CONST.PREVIEW_IMAGE]
+            self._snapshot_json = result
+            UTILS.update(self._snapshot_json, snapshot_json or {})
+        
 
         if refresh:
             await self._async_update_activities()
@@ -112,54 +93,56 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
     async def _async_update_activities(self) -> None:
         """Update stored activities and update caches as required."""
         activities = await self._async_activities_request()
-
+        # TOTO Activities is a list at this point
         self._activities = activities
         _LOGGER.debug("Device Activities Response: %s", self._activities)
 
+        """
         await self._async_update_events()
 
         if url := self.latest().get(CONST.MEDIA_URL):
             self.images[CONST.ACTIVITY] = await self._skybell.async_send_request(url)
+        """
 
     async def _async_update_events(
-        self, activities: list[EventDict] | None = None
+        self, activities: list[ActivityData] | None = None
     ) -> None:
         """Update our cached list of latest activity events."""
         activities = activities or self._activities
         for activity in activities:
-            event = activity[CONST.EVENT]
-            created = activity[CONST.CREATED_AT]
+            event_type = activity[CONST.EVENT_TYPE]
+            event_time = activity[CONST.EVENT_TIME]
 
-            if not (old := self._events.get(event)) or created >= old[CONST.CREATED_AT]:
-                self._events[event] = activity
+            if not (old := self._events.get(event_type)) or event_time >= old[CONST.EVENT_TIME]:
+                self._events[event_type] = activity
 
-    def activities(self, limit: int = 1, event: str | None = None) -> list[EventDict]:
+    def activities(self, limit: int = 1, event: str | None = None) -> list[ActivityData]:
         """Return device activity information."""
         activities = self._activities
 
         # Filter our activity array if requested
         if event:
-            activities = list(filter(lambda act: act[CONST.EVENT] == event, activities))
+            activities = list(filter(lambda act: act[CONST.EVENT_TYPE] == event, activities))
 
         # Return the requested number
         return activities[:limit]
 
-    def latest(self, event: str | None = None) -> EventDict:
+    def latest(self, event: str | None = None) -> ActivityData:
         """Return the latest event activity (motion or button)."""
         _LOGGER.debug(self._events)
 
         if event:
             _evt: dict[str, str]
             if not (_evt := self._events.get(f"device:sensor:{event}", {})):
-                _default = {CONST.CREATED_AT: "1970-01-01T00:00:00.000Z"}
+                _default = {CONST.EVENT_TIME: "1970-01-01T00:00:00.000Z"}
                 _evt = self._events.get(f"application:on-{event}", _default)
-            _entry = {CONST.CREATED_AT: parse_datetime(_evt[CONST.CREATED_AT])}
-            return cast(EventDict, _evt | _entry)
+            _entry = {CONST.EVENT_TIME: parse_datetime(_evt[CONST.EVENT_TIME])}
+            return cast(ActivityData, _evt | _entry)
 
-        latest: EventDict = EventDict()
+        latest: ActivityData = ActivityData()
         latest_date = None
         for evt in self._events.values():
-            date = parse_datetime(evt[CONST.CREATED_AT])
+            date = parse_datetime(evt[CONST.EVENT_TIME])
             if len(latest) == 0 or latest_date is None or latest_date < date:
                 latest = evt
                 latest_date = date
@@ -201,10 +184,6 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
 
     async def _async_set_setting(self, settings: dict[str, str | int]) -> None:
         """Validate the settings and then send the PATCH request."""
-        if self.acl == CONST.ACLType.READ.value:
-            raise SkybellAuthenticationException(
-                self, "Attempted setting with invalid scope"
-            )
         for key, value in settings.items():
             _validate_setting(key, value)
 
@@ -217,9 +196,12 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
 
     async def async_get_activity_video_url(self, video: str | None = None) -> str:
         """Get activity video. Return latest if no video specified."""
-        durl = str.replace(CONST.DEVICE_ACTIVITY_VIDEO_URL, "$DEVID$", self._device_id)
-        act_url = str.replace(durl, "$ACTID$", video or self.latest()[CONST.ID])
-        return (await self._skybell.async_send_request(act_url))[CONST.URL]
+        act_url = str.replace(CONST.ACTIVITY_VIDEO_URL, "$ACTID$", video or self.latest()[CONST.ACTIVITY_ID])
+        response = await self._skybell.async_send_request(act_url)
+        if CONST.VIDEO_URL in response:
+            return response[CONST.VIDEO_URL]
+        else:
+            return ""
 
     async def async_download_videos(
         self,
@@ -230,61 +212,53 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
     ) -> None:
         """Download videos to specified path."""
         _path = self._skybell._cache_path[:-7]  # pylint:disable=protected-access
-        if video and (_id := [ev for ev in self._activities if video == ev[CONST.ID]]):
+        if video and (_id := [ev for ev in self._activities if video == ev[CONST.VIDEO_URL]]):
             return await self._async_save_video(path or _path, _id[0], delete)
         for event in self.activities(limit=limit):
             await self._async_save_video(path or _path, event, delete)
 
     async def _async_save_video(
-        self, path: str, event: EventDict, delete: bool
+        self, path: str, event: ActivityData, delete: bool
     ) -> None:
         """Write video from S3 to file."""
-        async with aiofiles.open(f"{path}_{event[CONST.CREATED_AT]}.mp4", "wb") as file:
-            url = await self.async_get_activity_video_url(event[CONST.ID])
+        async with aiofiles.open(f"{path}_{event[CONST.EVENT_TIME]}.mp4", "wb") as file:
+            url = await self.async_get_activity_video_url(event[CONST.VIDEO_URL])
             await file.write(await self._skybell.async_send_request(url))
         if delete:
-            await self.async_delete_video(event[CONST.ID])
+            await self.async_delete_video(event[CONST.VIDEO_URL])
 
     async def async_delete_video(self, video: str) -> None:
         """Delete video with specified activity id."""
-        durl = str.replace(CONST.DEVICE_ACTIVITY_URL, "$DEVID$", self._device_id)
-        act_url = str.replace(durl, "$ACTID$", video)
+        act_url = str.replace(CONST.ACTIVITY_VIDEO_URL, "$ACTID$", video)
         await self._skybell.async_send_request(act_url, method=CONST.HTTPMethod.DELETE)
-
-    @property
-    def acl(self) -> str:
-        """Get access level to device."""
-        return self._device_json[CONST.ACL]
-
-    @property
-    def owner(self) -> bool:
-        """Return if user has admin rights to device."""
-        return self.acl == CONST.ACLType.OWNER.value
 
     @property
     def user_id(self) -> str:
         """Get user id that owns the device."""
-        return self._device_json["user"]
+        return self._device_json.get([CONST.DEVICE_OWNER], "")
 
     @property
     def mac(self) -> str | None:
         """Get device mac address."""
-        return self._info_json.get("mac")
+        device_settings = self._device_json.get(CONST.DEVICE_SETTINGS, {})
+        return device_settings.get(CONST.DEVICE_MAC, "")
 
     @property
     def serial_no(self) -> str:
         """Get device serial number."""
-        return self._info_json.get("serialNo", "")
+        device_settings = self._device_json.get(CONST.DEVICE_SETTINGS, {})
+        return device_settings.get(CONST.DEVICE_SERIAL_NO, "")
 
     @property
     def firmware_ver(self) -> str:
         """Get device firmware version."""
-        return self._info_json.get("firmwareVersion", "")
+        device_settings = self._device_json.get(CONST.DEVICE_SETTINGS, {})
+        return device_settings.get(CONST.DEVICE_FIRMWARE_VERS, "")
 
     @property
     def name(self) -> str:
         """Get device name."""
-        return self._device_json[CONST.NAME]
+        return self._device_json.get([CONST.DEVICE_NAME],"")
 
     @property
     def type(self) -> str:
@@ -299,33 +273,37 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
     @property
     def status(self) -> str:
         """Get the generic status of a device (up/down)."""
-        return self._device_json[CONST.STATUS]
+        if self.is_up:
+            return CONST.STATUS_UP
+        else:
+            return CONST.STATUS_DOWN
 
     @property
     def is_up(self) -> bool:
         """Shortcut to get if the device status is up."""
-        return self.status == CONST.STATUS_UP
+        ld = self._device_json.get(CONST.LAST_DISCONNECTED, datetime(1970, 1, 1))
+        lc = self._device_json.get(CONST.LAST_CONNECTED, datetime(1970, 1, 1))
+        
+        return lc > ld
 
     @property
     def location(self) -> tuple[str, str]:
         """Return lat and lng tuple."""
-        location = self._device_json.get(CONST.LOCATION, {})
-
         return (
-            location.get(CONST.LOCATION_LAT, "0"),
-            location.get(CONST.LOCATION_LNG, "0"),
+            self._device_json.get(CONST.LOCATION_LAT, "0"),
+            self._device_json.get(CONST.LOCATION_LON, "0"),
         )
 
     @property
-    def image_url(self) -> str:
+    def snapshot_image(self) -> str:
         """Get the most recent 'avatar' image."""
-        return self._avatar_json[CONST.URL]
+        return self._snapshot_json[CONST.PREVIEW_IMAGE]
 
     @property
     def wifi_status(self) -> str:
         """Get the wifi status."""
-        status = self._info_json.get(CONST.STATUS, {})
-        return status.get(CONST.WIFI_LINK, "")
+        telemetry = self._device_json.get([CONST.DEVICE_TELEMETRY],{})
+        return telemetry.get(CONST.WIFI_LINK_QUALITY, "")
 
     @property
     def wifi_ssid(self) -> str:
@@ -333,9 +311,14 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
         return self._info_json.get(CONST.WIFI_SSID, "")
 
     @property
-    def last_check_in(self) -> datetime:
-        """Get last check in timestamp."""
-        return self._info_json.get(CONST.CHECK_IN, "")
+    def last_connected(self) -> datetime:
+        """Get last connected timestamp."""
+        tss = self._device_json.get(CONST.LAST_CONNECTED, "")
+        try:
+            ts = datetime.fromisoformat(tss)
+        except ValueError:
+            ts = ""
+        return ts
 
     @property
     def do_not_disturb(self) -> bool:

@@ -9,11 +9,11 @@ from typing import Any
 
 import aiofiles
 
-from .helpers.models import EventTypeDict
+from .helpers.models import DeviceType
 
 
 async def async_save_cache(
-    data: dict[str, str | dict[str, EventTypeDict]],
+    data: dict[str, str | dict[str, DeviceType]],
     filename: str,
 ) -> None:
     """Save cache from file."""

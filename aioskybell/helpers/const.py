@@ -14,78 +14,85 @@ class HTTPMethod(Enum):
 CACHE_PATH = "./skybell.pickle"
 
 # URLS
-BASE_URL = "https://cloud.myskybell.com/api/v3/"
-BASE_URL_V4 = "https://cloud.myskybell.com/api/v4/"
+BASE_API_DOMAIN = "https://api.skybell.network"
+BASE_AUTH_DOMAIN = "https://api.skybell.network"
 
-LOGIN_URL = BASE_URL + "login/"
-LOGOUT_URL = BASE_URL + "logout/"
+BASE_URL = "/api/v5/"
+BASE_API_URL = BASE_API_DOMAIN + BASE_URL
 
-USERS_ME_URL = BASE_URL + "users/me/"
+LOGIN_URL = BASE_AUTH_DOMAIN + BASE_URL + "login/"
+LOGOUT_URL = BASE_AUTH_DOMAIN + BASE_URL + "logout/"
 
-DEVICES_URL = BASE_URL + "devices/"
+USER_URL = BASE_API_URL + "user/"
+
+DEVICES_URL = BASE_API_URL + "devices/"
 DEVICE_URL = DEVICES_URL + "$DEVID$/"
-DEVICE_ACTIVITIES_URL = DEVICE_URL + "activities/"
-DEVICE_ACTIVITY_URL = DEVICE_ACTIVITIES_URL + "$ACTID$/"
-DEVICE_ACTIVITY_VIDEO_URL = DEVICE_ACTIVITY_URL + "video/"
-DEVICE_AVATAR_URL = DEVICE_URL + "avatar/"
-DEVICE_INFO_URL = DEVICE_URL + "info/"
+
+DEVICE_SNAPSHOT_URL = DEVICE_URL + "snapshot/"
 DEVICE_SETTINGS_URL = DEVICE_URL + "settings/"
 
-SUBSCRIPTIONS_URL = BASE_URL + "subscriptions?include=device,owner"
-SUBSCRIPTION_URL = BASE_URL + "subscriptions/$SUBSCRIPTIONID$"
-SUBSCRIPTION_INFO_URL = SUBSCRIPTION_URL + "/info/"
-SUBSCRIPTION_SETTINGS_URL = SUBSCRIPTION_URL + "/settings/"
-
-
-# ACLs
-class ACLType(str, Enum):
-    """ACL types."""
-
-    BASIC = "device:basic"
-    OWNER = "owner"
-    READ = "device:read"
-
+ACTIVITIES_URL = BASE_API_URL + "activity"
+ACTIVITY_URL = ACTIVITIES_URL + "/$ACTID$/"
+ACTIVITY_VIDEO_URL = ACTIVITY_URL + "/video/"
+DEVICE_ACTIVITIES_URL = ACTIVITIES_URL + "?device_id=$DEVID$/"
 
 # GENERAL
-ACCESS_TOKEN = "access_token"
+ACCESS_TOKEN = "AccessToken"
+AUTHENTICATION_RESULT = "AuthenticationResult"
+
 APP_ID = "app_id"
 CLIENT_ID = "client_id"
 DEVICES = "devices"
 TOKEN = "token"
+APP_VERSION = "1.238.1"
+RESPONSE_DATA = "data"
+RESPONSE_ROWS = "rows"
 
-# ATTRIBUTES
-ATTR_LAST_CHECK_IN = "last_check_in"
-ATTR_WIFI_SSID = "wifi_ssid"
-ATTR_WIFI_STATUS = "wifi_status"
+STATUS_UP = "Up"
+STATUS_DOWN = "Down"
 
-ATTR_OWNER_STATS = [ATTR_LAST_CHECK_IN, ATTR_WIFI_SSID, ATTR_WIFI_STATUS]
+# User
+USER_ID = "account_id"
+FIRST_NAME = "fname"
+LAST_NAME = "lname"
 
 # DEVICE
-ACL = "acl"
 ACTIVITY = "activity"
-AVATAR = "avatar"
-ID = "id"
-LOCATION = "location"
+DEVICE_ID = "device_id"
 LOCATION_LAT = "lat"
-LOCATION_LNG = "lng"
-MEDIA_URL = "media"
-NAME = "name"
-STATUS = "status"
-STATUS_UP = "up"
-TYPE = "type"
-URL = "url"
+LOCATION_LON = "lon"
+TYPE = "hardware"
+LAST_CONNECTED = "last_connected"
+LAST_DISCONNECTED = "last_disconnected"
 
-# DEVICE INFO
-CHECK_IN = "checkedInAt"
-WIFI_LINK = "wifiLink"
-WIFI_SSID = "essid"
+# DEVUCE IMAGE SNAPSHOT
+SNAPSHOT = "snapshot"
+PREVIEW_CREATED_AT = "date_time"
+PREVIEW_IMAGE = "preview"
+
+# DEVICE SETTINGS
+DEVICE_SETTINGS = "device_settings"
+WIFI_SSID = "ESSID"
+DEVICE_NAME = "name"
+DEVICE_OWNER = "account_id"
+DEVICE_MAC = "MAC_address"
+DEVICE_SERIAL_NO = "serial_number"
+DEVICE_FIRMWARE_VERS = "firmware_version"
+
+#DEVICE TELEMETRY
+DEVICE_TELEMETRY = "telemetry"
+DEVICE_UPTIME = "uptime"
+WIFI_LINK_QUALITY = "link_quality"
+
 
 # DEVICE ACTIVITIES
-CREATED_AT = "createdAt"
-EVENT = "event"
+ACTIVITY_ID = "activity_id"
+EVENT_TYPE = "event_type"
+EVENT_TIME = "event_time"
 EVENT_BUTTON = "device:sensor:button"
 EVENT_MOTION = "device:sensor:motion"
 EVENT_ON_DEMAND = "application:on-demand"
+VIDEO_URL = "video_url"
 
 STATE = "state"
 STATE_READY = "ready"
