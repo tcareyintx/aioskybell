@@ -205,11 +205,17 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
             _validate_setting(key, value)
 
         try:
-            await self._async_settings_request(
+            result = await self._async_settings_request(
                 json=settings, method=CONST.HTTPMethod.POST
             )
         except SkybellException:
             _LOGGER.warning("Exception changing settings: %s", settings)
+            result = None
+            
+        # Now we need to update the settings n the local device.
+        if result is not None:
+            old_settings = self._device_json.get(CONST.SETTINGS, {})
+            UTILS.update(old_settings, result)
 
     async def async_get_activity_video_url(self, video: str | None = None) -> str:
         """Get activity video. Return latest if no video specified."""
