@@ -17,24 +17,24 @@ CACHE_PATH = "./skybell.pickle"
 BASE_API_DOMAIN = "https://api.skybell.network"
 BASE_AUTH_DOMAIN = "https://api.skybell.network"
 
-BASE_URL = "/api/v5/"
+BASE_URL = "/api/v5"
 BASE_API_URL = BASE_API_DOMAIN + BASE_URL
 
-LOGIN_URL = BASE_AUTH_DOMAIN + BASE_URL + "login/"
-LOGOUT_URL = BASE_AUTH_DOMAIN + BASE_URL + "logout/"
+LOGIN_URL = BASE_AUTH_DOMAIN + BASE_URL + "/login/"
+LOGOUT_URL = BASE_AUTH_DOMAIN + BASE_URL + "/logout/"
 
-USER_URL = BASE_API_URL + "user/"
+USER_URL = BASE_API_URL + "/user/"
 
-DEVICES_URL = BASE_API_URL + "devices/"
+DEVICES_URL = BASE_API_URL + "/devices/"
 DEVICE_URL = DEVICES_URL + "$DEVID$/"
 
 DEVICE_SNAPSHOT_URL = DEVICE_URL + "snapshot/"
 DEVICE_SETTINGS_URL = DEVICE_URL + "settings/"
 
-ACTIVITIES_URL = BASE_API_URL + "activity"
+ACTIVITIES_URL = BASE_API_URL + "/activity"
 ACTIVITY_URL = ACTIVITIES_URL + "/$ACTID$/"
 ACTIVITY_VIDEO_URL = ACTIVITY_URL + "/video/"
-DEVICE_ACTIVITIES_URL = ACTIVITIES_URL + "?device_id=$DEVID$/"
+DEVICE_ACTIVITIES_URL = ACTIVITIES_URL + "?device_id=$DEVID$"
 
 # GENERAL
 ACCESS_TOKEN = "AccessToken"
@@ -64,9 +64,10 @@ LOCATION_LON = "lon"
 TYPE = "hardware"
 LAST_CONNECTED = "last_connected"
 LAST_DISCONNECTED = "last_disconnected"
+UPDATED_AT = "updated_at"
 
 # DEVUCE IMAGE SNAPSHOT
-SNAPSHOT = "snapshot"
+SNAPSHOT = "avatar"
 PREVIEW_CREATED_AT = "date_time"
 PREVIEW_IMAGE = "preview"
 
@@ -87,12 +88,15 @@ WIFI_LINK_QUALITY = "link_quality"
 
 # DEVICE ACTIVITIES
 ACTIVITY_ID = "activity_id"
+ID = ACTIVITY_ID #Needed for HA integration
 EVENT_TYPE = "event_type"
+CREATED_AT = EVENT_TYPE  #Needed for HA integration
 EVENT_TIME = "event_time"
 EVENT_BUTTON = "device:sensor:button"
 EVENT_MOTION = "device:sensor:motion"
 EVENT_ON_DEMAND = "application:on-demand"
 VIDEO_URL = "video_url"
+DOWNLOAD_URL = "download_url"
 
 STATE = "state"
 STATE_READY = "ready"
@@ -101,9 +105,9 @@ VIDEO_STATE = "videoState"
 VIDEO_STATE_READY = "download:ready"
 
 # DEVICE SETTINGS
-BRIGHTNESS = "led_intensity"
-DO_NOT_DISTURB = "do_not_disturb"
-DO_NOT_RING = "do_not_ring"
+SETTINGS = "settings"
+BRIGHTNESS = "brightness"
+RGB_COLOR = "rgb_color"
 LED_B = "green_b"
 LED_G = "green_g"
 LED_R = "green_r"
@@ -111,8 +115,9 @@ LED_COLORS = [LED_R, LED_G, LED_B]
 MOTION_POLICY = "motion_policy"
 MOTION_THRESHOLD = "motion_threshold"
 OUTDOOR_CHIME = "chime_level"
-RGB_COLOR = "rgb_color"
 VIDEO_PROFILE = "video_profile"
+DO_NOT_DISTURB = "do_not_disturb"
+DO_NOT_RING = "do_not_ring"
 
 # SETTINGS Values
 BOOL_STRINGS = ["True", "False"]
@@ -154,4 +159,9 @@ VIDEO_PROFILE_VALUES = [
 
 LED_VALUES = [0, 255]
 
-BRIGHTNESS_VALUES = [0, 100]
+#Brightness values
+BRIGHTNESS_VALUES = [0, 1000]
+BRIGHTNESS_LOW = 0
+BRIGHTNESS_MEDIUM = 1
+BRIGHTNESS_HIGH = 2
+#Brightness percent is between 3-1000 / 100

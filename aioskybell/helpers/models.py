@@ -108,7 +108,7 @@ class ActivityData(dict):
     """Class for an activity (event).
        See /api/v5/activities"""
     
-    event_time: str
+    event_time: int
     account_id: str
     device_id: str
     device_name: str
@@ -116,9 +116,14 @@ class ActivityData(dict):
     event_type: str
     date: str
     video_url: str
-    image: str
-    edge_tags: str
-    ai_ppe: str
+    video_ready: bool
+    image: str | None
+    edge_tags: list
+    ai_ppe: str | None
+    created_at: str
+    video_size: int
+    video_ready_time: str
+    
     
 ActivityType = dict[str, ActivityData]
 DeviceType = dict[str, dict[str, ActivityType]]

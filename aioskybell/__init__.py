@@ -266,8 +266,11 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
         else:
             local_response = await response.read()
         # Now we have a local response which could be 
-        # a read dictionary or json dictionary
-        return local_response.get(CONST.RESPONSE_DATA)
+        # a json dictionary or byte stream
+        if isinstance(local_response, dict):
+            return local_response.get(CONST.RESPONSE_DATA,{})
+        else:
+            return local_response
 
     def cache(self, key: str) -> str | Collection[str]:
         """Get a cached value."""
