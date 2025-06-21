@@ -6,7 +6,7 @@ with open("README.md") as readme_file:
 
 setup(
     name="aioskybell",
-    version="master",
+    version="0.0.1",
     author="Tim Carey",
     author_email="tlcareyintx@gmail.com",
     description="A Skybell Gen5 API Python library running on Python 3.",
