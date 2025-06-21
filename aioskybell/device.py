@@ -252,6 +252,11 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
         act_url = str.replace(CONST.ACTIVITY_VIDEO_URL, "$ACTID$", video)
         await self._skybell.async_send_request(act_url, method=CONST.HTTPMethod.DELETE)
 
+    def owner(self) -> bool:
+        """Return if user has admin rights to device."""
+        #TODO Figure out admin rights
+        return True
+    
     @property
     def user_id(self) -> str:
         """Get user id that owns the device."""
