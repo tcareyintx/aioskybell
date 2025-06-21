@@ -80,6 +80,13 @@ DEVICE_MAC = "MAC_address"
 DEVICE_SERIAL_NO = "serial_number"
 DEVICE_FIRMWARE_VERS = "firmware_version"
 
+# ATTRIBUTES
+ATTR_LAST_CHECK_IN = "last_check_in"
+ATTR_WIFI_SSID = "wifi_ssid"
+ATTR_WIFI_STATUS = "wifi_status"
+
+ATTR_OWNER_STATS = [ATTR_LAST_CHECK_IN, ATTR_WIFI_SSID, ATTR_WIFI_STATUS]
+
 #DEVICE TELEMETRY
 DEVICE_TELEMETRY = "telemetry"
 DEVICE_UPTIME = "uptime"
