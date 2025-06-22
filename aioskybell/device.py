@@ -63,8 +63,8 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
 
     async def _async_activities_request(self) -> list[ActivityData]:
         """ Activities returns a list of all activity on the device
-            Note that the activities is limited to default limit 
-            as pagination is not supported in the activities request
+        Note that the activities is limited to default limit 
+        as pagination is not supported in the activities request
         """
         url = str.replace(CONST.DEVICE_ACTIVITIES_URL, "$DEVID$", self.device_id)
         response = await self._skybell.async_send_request(url)
@@ -77,16 +77,16 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
         refresh: bool = True,
         get_devices: bool = False,
     ) -> None:
-        """Update the internal device json data."""
+        # Update the internal device json data.
         if refresh or device_json or len(self._device_json) == 0:
             if get_devices:
                 device_json = await self._async_device_request()
             UTILS.update(self._device_json, device_json or {})
 
-        # The Snapshot image is the avatar of the doorbell
+        # The Snapshot image is the avatar of the doorbell.
         if refresh or snapshot_json or len(self._snapshot_json) == 0:
             result = await self._async_snapshot_request()
-            # Update the image for the avatar snapshot
+            # Update the image for the avatar snapshot.
             if result[CONST.PREVIEW_CREATED_AT] != self._snapshot_json.get(CONST.PREVIEW_CREATED_AT):
                 base64_string = result[CONST.PREVIEW_IMAGE]
                 self.images[CONST.SNAPSHOT] = b64decode(base64_string)
@@ -102,10 +102,10 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
         self._activities = await self._async_activities_request()
         _LOGGER.debug("Device Activities Response: %s", self._activities)
 
-        # Update the selected events from the activity list
+        # Update the selected events from the activity list.
         await self._async_update_events()
 
-        # Update the images for the activity
+        # Update the images for the activity.
         if url := self.latest().get(CONST.VIDEO_URL, ""):
             if len(url) > 0:
                 url = CONST.BASE_API_URL + url
@@ -118,7 +118,7 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
     async def _async_update_events(
         self, activities: list[ActivityData] | None = None
     ) -> None:
-        """Update our cached list of latest activity events by type."""
+        #Update our cached list of latest activity events by type.
         activities = activities or self._activities
         for activity in activities:
             event_type = activity[CONST.EVENT_TYPE]
@@ -164,10 +164,9 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
     async def async_set_setting(
         self, key: str, value: bool | str | int | tuple[int, int, int]
     ) -> None:
-        """ Set an attribute for the device.
-            The key isn't necessarily equal to the corresponding field
-            and may require transformation logic.
-        """
+        # Set an attribute for the device.
+        # The key isn't necessarily equal to the corresponding field
+        # and may require transformation logic.
         #TODO: Validate these entries
         if key in [CONST.DO_NOT_DISTURB, CONST.DO_NOT_RING]:
             await self._async_set_setting({key: str(value)})
@@ -254,7 +253,7 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
 
     def owner(self) -> bool:
         """Return if user has admin rights to device."""
-        #TODO Figure out admin rights
+        # TODO: Figure out admin rights
         return True
     
     @property
