@@ -73,12 +73,13 @@ PREVIEW_IMAGE = "preview"
 
 # DEVICE SETTINGS
 DEVICE_SETTINGS = "device_settings"
-WIFI_SSID = "ESSID"
 DEVICE_NAME = "name"
 DEVICE_OWNER = "account_id"
 DEVICE_MAC = "MAC_address"
 DEVICE_SERIAL_NO = "serial_number"
 DEVICE_FIRMWARE_VERS = "firmware_version"
+DEVICE_MOTION_DETECTION = "motion_detection"
+DEVICE_BUTTON_DETECTION = "button_detection"
 
 # ATTRIBUTES
 ATTR_LAST_CHECK_IN = "last_check_in"
@@ -89,8 +90,11 @@ ATTR_OWNER_STATS = [ATTR_LAST_CHECK_IN, ATTR_WIFI_SSID, ATTR_WIFI_STATUS]
 
 #DEVICE TELEMETRY
 DEVICE_TELEMETRY = "telemetry"
-DEVICE_UPTIME = "uptime"
+DEVICE_LAST_SEEN = "last_seen"
+DEVICE_IP_ADDRESS = "ip_address"
 WIFI_LINK_QUALITY = "link_quality"
+WIFI_SIGNAL_LEVEL = "signal_level"
+WIFI_SSID = "essid"
 
 
 # DEVICE ACTIVITIES

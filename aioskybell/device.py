@@ -21,7 +21,7 @@ from .helpers.models import (  # isort:skip
     ActivityType,
     SettingsData
 )
-from aioskybell.helpers.const import DEVICE_UPTIME, RESPONSE_ROWS
+from aioskybell.helpers.const import RESPONSE_ROWS
 
 if TYPE_CHECKING:
     from . import Skybell
@@ -78,13 +78,13 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
         get_devices: bool = False,
     ) -> None:
         # Update the internal device json data.
-        if refresh or device_json or len(self._device_json) == 0:
+        if refresh or device_json or not self._device_json:
             if get_devices:
                 device_json = await self._async_device_request()
             UTILS.update(self._device_json, device_json or {})
 
         # The Snapshot image is the avatar of the doorbell.
-        if refresh or snapshot_json or len(self._snapshot_json) == 0:
+        if refresh or snapshot_json or not self._snapshot_json:
             result = await self._async_snapshot_request()
             # Update the image for the avatar snapshot.
             if result[CONST.PREVIEW_CREATED_AT] != self._snapshot_json.get(CONST.PREVIEW_CREATED_AT):
@@ -111,7 +111,7 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
                 url = CONST.BASE_API_URL + url
                 response = await self._skybell.async_send_request(url)
                 url = response.get(CONST.DOWNLOAD_URL, "")
-                if len(url) > 0:
+                if not url:
                     response = await self._skybell.async_send_request(url)
                     self.images[CONST.ACTIVITY] = response
 
@@ -156,7 +156,7 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
         latest_date = None
         for evt in self._events.values():
             date = evt[CONST.EVENT_TIME]
-            if len(latest) == 0 or latest_date is None or latest_date < date:
+            if not latest or latest_date is None or latest_date < date:
                 latest = evt
                 latest_date = date
         return latest
@@ -327,7 +327,8 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
     @property
     def wifi_ssid(self) -> str:
         """Get the wifi ssid."""
-        return self._device_json.get(CONST.WIFI_SSID, "")
+        telemetry = self._device_json.get(CONST.DEVICE_TELEMETRY,{})
+        return telemetry.get(CONST.WIFI_SSID, "")
 
     @property
     def last_connected(self) -> datetime:
@@ -342,7 +343,8 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
     @property
     def last_check_in(self) -> datetime:
         """Get last checkin timestamp."""
-        tss = self._device_json.get(CONST.UPDATED_AT, "")
+        telemetry = self._device_json.get(CONST.DEVICE_TELEMETRY,{})
+        tss = telemetry.get(CONST.DEVICE_LAST_SEEN, "")
         try:
             ts = datetime.fromisoformat(tss)
         except ValueError:
@@ -376,7 +378,7 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
     def motion_sensor(self) -> bool:
         """Get if the devices motion sensor is enabled."""
         settings_json = self._device_json.get(CONST.SETTINGS,{})
-        return settings_json.get(CONST.MOTION_POLICY) == CONST.MOTION_POLICY_ON
+        return settings_json.get(CONST.DEVICE_MOTION_DETECTION)
 
     @property
     def motion_threshold(self) -> int:
