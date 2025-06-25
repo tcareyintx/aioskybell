@@ -20,7 +20,7 @@ class MotionZoneConfigData(dict):
 
 # ToDo Need to add the motion zone
 class SettingsData(dict):
-    """Class for settings permitted for the device.
+    """Class for update settings permitted for the device.
        See /api/v5/devices/DEVICE_ID/settings"""
 
     device_name: str | None

@@ -21,17 +21,18 @@ async def async_example():
             print("Device: %s, Status: %s" 
                     % (device.device_id, device.status))
                         
-            # Example setting - set_setting does not refresh the device
-            old_brightness = device.led_intensity
-            new_brightness = CONST.BRIGHTNESS_HIGH
-            if old_brightness == CONST.BRIGHTNESS_HIGH:
-                new_brightness = CONST.BRIGHTNESS_MEDIUM
+            # Example setting for LED color
+            old_color = device.led_color
+            new_color = [255,255,255]
+            if old_color == new_color:
+                new_color = [0,255,0]
                 
-            await device.async_set_setting(CONST.BRIGHTNESS, new_brightness)
+            await device.async_set_setting(CONST.LED_COLOR, new_color)
+            print("Device: %s, Old Color: %s New Color %s" 
+                  % (device.device_id, old_color, device.led_color))
+
             # Refresh the device including activities and events
             await device.async_update(get_devices=True)
-            print("Device: %s, Old Brightness: %d New Brightness %d" 
-                  % (device.device_id, old_brightness, device.led_intensity))
 
 
 loop = asyncio.new_event_loop()

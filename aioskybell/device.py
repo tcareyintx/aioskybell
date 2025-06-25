@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from base64 import b64decode
 from typing import TYPE_CHECKING, Any, cast
 
@@ -23,6 +23,7 @@ from .helpers.models import (  # isort:skip
 )
 from aioskybell.helpers.const import RESPONSE_ROWS
 
+
 if TYPE_CHECKING:
     from . import Skybell
 
@@ -41,7 +42,8 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
         self._device_id = device_json.get(CONST.DEVICE_ID, "")
         self._device_json = device_json
         self._skybell = skybell
-        self._type = device_json.get(CONST.TYPE, "")
+        device_settings = self._device_json.get(CONST.DEVICE_SETTINGS, {})
+        self._type = device_settings.get(CONST.HARDWARE_VERSION, "")
         self.images: dict[str, bytes | None] = {CONST.ACTIVITY: None}
         self._events: ActivityType = {}
 
@@ -167,36 +169,48 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
         # Set an attribute for the device.
         # The key isn't necessarily equal to the corresponding field
         # and may require transformation logic.
-        #TODO: Validate these entries
-        if key in [CONST.DO_NOT_DISTURB, CONST.DO_NOT_RING]:
-            await self._async_set_setting({key: str(value)})
-        if key == ("motion_sensor" or CONST.MOTION_POLICY):
-            key = CONST.MOTION_POLICY
-            value = bool(value)
-            value = CONST.MOTION_POLICY_ON if value is True else CONST.MOTION_POLICY_OFF
-            await self._async_set_setting({key: value})
-        if key == CONST.RGB_COLOR:
+        if key == CONST.LED_COLOR:
             if not isinstance(value, (list, tuple)) or not all(
                 isinstance(item, int) for item in value
             ):
                 raise SkybellException(self, value)
 
-            await self._async_set_setting(
-                {
-                    CONST.LED_R: value[0],
-                    CONST.LED_G: value[1],
-                    CONST.LED_B: value[2],
-                }
-            )
-        if key in [
-            CONST.OUTDOOR_CHIME,
-            CONST.MOTION_THRESHOLD,
-            CONST.VIDEO_PROFILE,
-            CONST.BRIGHTNESS,
-            "brightness",
-        ] and not isinstance(value, tuple):
-            key = CONST.BRIGHTNESS if key == "brightness" else key
-            await self._async_set_setting({key: int(value)})
+            rgb_value = "#{0:02x}{1:02x}{2:02x}".format(value[0], value[1], value[2])
+            return await self._async_set_setting({key: rgb_value})
+        
+        # Normal LED control of false has to reset the LED COLOR to Empty
+        if key == CONST.NORMAL_LED:
+            if not isinstance(value, bool):
+                raise SkybellException(self, value)
+            key = CONST.LED_COLOR
+            if value:
+                rgb = self.led_color
+                value = "#{0:02x}{1:02x}{2:02x}".format(rgb[0], rgb[1], rgb[2])
+                if not value:
+                    value = CONST.DEFAULT_NORMAL_LED_COLOR
+            else:
+                value = ""
+
+        """
+        # Button and Motion tones need to update the entry in the tones dictionary
+        if key == CONST.BUTTON_TONE or key == CONST.MOTION_TONE:
+            if not isinstance(value, str):
+                raise SkybellException(self, value)
+            tones = self._device_json.get(CONST.TONES, {})
+            if key in tones:
+                tone = tones.get(key, {})
+                if tone is None:
+                    tone = {}
+                tone[CONST.TONE_FILE] = value
+                tone[CONST.TONE_TIME] = datetime.now(timezone.utc).isoformat()
+                tones[key] = tone
+            else:
+                raise SkybellException(self, value)
+            return await self._async_set_setting({CONST.TONES: tones})
+        """
+        
+        # UPdate the settings value for the key
+        return await self._async_set_setting({key: value})
 
     async def _async_set_setting(self, settings: dict[str, str | int]) -> None:
         """Validate the settings and then send the POST request."""
@@ -251,38 +265,20 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
         act_url = str.replace(CONST.ACTIVITY_VIDEO_URL, "$ACTID$", video)
         await self._skybell.async_send_request(act_url, method=CONST.HTTPMethod.DELETE)
 
-    def owner(self) -> bool:
-        """Return if user has admin rights to device."""
-        # TODO: Figure out admin rights
-        return True
-    
     @property
     def user_id(self) -> str:
         """Get user id that owns the device."""
-        return self._device_json.get(CONST.DEVICE_OWNER, "")
+        return self._device_json.get(CONST.ACCOUNT_ID, "")
 
     @property
-    def mac(self) -> str | None:
-        """Get device mac address."""
-        device_settings = self._device_json.get(CONST.DEVICE_SETTINGS, {})
-        return device_settings.get(CONST.DEVICE_MAC, "")
-
-    @property
-    def serial_no(self) -> str:
-        """Get device serial number."""
-        device_settings = self._device_json.get(CONST.DEVICE_SETTINGS, {})
-        return device_settings.get(CONST.DEVICE_SERIAL_NO, "")
-
-    @property
-    def firmware_ver(self) -> str:
-        """Get device firmware version."""
-        device_settings = self._device_json.get(CONST.DEVICE_SETTINGS, {})
-        return device_settings.get(CONST.DEVICE_FIRMWARE_VERS, "")
+    def device_id(self) -> str:
+        """Get the device id."""
+        return self._device_id
 
     @property
     def name(self) -> str:
         """Get device name."""
-        return self._device_json.get(CONST.DEVICE_NAME,"")
+        return self._device_json.get(CONST.NAME,"")
 
     @property
     def type(self) -> str:
@@ -290,9 +286,29 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
         return self._type
 
     @property
-    def device_id(self) -> str:
-        """Get the device id."""
-        return self._device_id
+    def mac(self) -> str | None:
+        """Get device mac address."""
+        device_settings = self._device_json.get(CONST.DEVICE_SETTINGS, {})
+        return device_settings.get(CONST.MAC_ADDRESS, "")
+
+    @property
+    def serial_no(self) -> str:
+        """Get device serial number."""
+        device_settings = self._device_json.get(CONST.DEVICE_SETTINGS, {})
+        return device_settings.get(CONST.SERIAL_NUM, "")
+
+    @property
+    def firmware_ver(self) -> str:
+        """Get device firmware version."""
+        device_settings = self._device_json.get(CONST.DEVICE_SETTINGS, {})
+        return device_settings.get(CONST.FIRMWARE_VERSION, "")
+
+    @property
+    def desc(self) -> str:
+        """Get a short description of the device."""
+        # Front Door (id: ) - skybell hd - status: up - wifi status: good
+        string = f"{self.name} (id: {self.device_id}) - {self.type}"
+        return f"{string} - status: {self.status} - wifi status: {self.wifi_link_quality}"
 
     @property
     def status(self) -> str:
@@ -319,18 +335,6 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
         )
 
     @property
-    def wifi_status(self) -> str:
-        """Get the wifi status."""
-        telemetry = self._device_json.get(CONST.DEVICE_TELEMETRY,{})
-        return telemetry.get(CONST.WIFI_LINK_QUALITY, "")
-
-    @property
-    def wifi_ssid(self) -> str:
-        """Get the wifi ssid."""
-        telemetry = self._device_json.get(CONST.DEVICE_TELEMETRY,{})
-        return telemetry.get(CONST.WIFI_SSID, "")
-
-    @property
     def last_connected(self) -> datetime:
         """Get last connected timestamp."""
         tss = self._device_json.get(CONST.LAST_CONNECTED, "")
@@ -339,112 +343,167 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
         except ValueError:
             ts = ""
         return ts
+
+    @property
+    def last_disconnected(self) -> datetime:
+        """Get last connected timestamp."""
+        tss = self._device_json.get(CONST.LAST_DISCONNECTED, "")
+        try:
+            ts = datetime.fromisoformat(tss)
+        except ValueError:
+            ts = ""
+        return ts
     
     @property
-    def last_check_in(self) -> datetime:
-        """Get last checkin timestamp."""
+    def last_seen(self) -> datetime:
+        """Get last checkin timestamp. If not availalbe return the last connected"""
         telemetry = self._device_json.get(CONST.DEVICE_TELEMETRY,{})
         tss = telemetry.get(CONST.DEVICE_LAST_SEEN, "")
         try:
             ts = datetime.fromisoformat(tss)
         except ValueError:
             ts = ""
+        if not ts:
+            ts = self.last_connected
         return ts
 
     @property
-    def do_not_disturb(self) -> bool:
-        """Get if do not disturb is enabled."""
+    def indoor_chime(self) -> bool:
+        """Get if the devices indoor chime is enabled."""
         settings_json = self._device_json.get(CONST.SETTINGS,{})
-        return settings_json.get(CONST.DO_NOT_DISTURB) == "true"
+        return settings_json.get(CONST.INDOOR_CHIME)
 
     @property
-    def do_not_ring(self) -> bool:
-        """Get if do not ring is enabled."""
+    def digital_chime(self) -> bool:
+        """Get if the devices indoor digital chime is enabled."""
         settings_json = self._device_json.get(CONST.SETTINGS,{})
-        return settings_json.get(CONST.DO_NOT_RING) == "true"
-
+        return settings_json.get(CONST.INDOOR_DIGITAL_CHIME)
     @property
-    def outdoor_chime_level(self) -> int:
+    def chime_file(self) -> str:
         """Get devices outdoor chime level."""
         settings_json = self._device_json.get(CONST.SETTINGS,{})
-        return int(settings_json.get(CONST.OUTDOOR_CHIME, "0"))
+        return settings_json.get(CONST.CHIME_FILE, CONST.CHIME_1WAV)
 
     @property
     def outdoor_chime(self) -> bool:
         """Get if the devices outdoor chime is enabled."""
-        return self.outdoor_chime_level is not CONST.OUTDOOR_CHIME_OFF
-
-    @property
-    def motion_sensor(self) -> bool:
-        """Get if the devices motion sensor is enabled."""
         settings_json = self._device_json.get(CONST.SETTINGS,{})
-        return settings_json.get(CONST.DEVICE_MOTION_DETECTION)
+        return settings_json.get(CONST.OUTDOOR_CHIME)
 
     @property
-    def motion_threshold(self) -> int:
-        """Get devices motion threshold."""
+    def outdoor_chime_volume(self) -> int:
+        """Get devices outdoor chime volume."""
         settings_json = self._device_json.get(CONST.SETTINGS,{})
-        return int(settings_json.get(CONST.MOTION_THRESHOLD, "0"))
+        return int(settings_json.get(CONST.OUTDOOR_CHIME_VOLUME, CONST.OUTDOOR_CHIME_LOW))
 
     @property
-    def video_profile(self) -> int:
-        """Get devices video profile."""
+    def outdoor_chime_file(self) -> str:
+        """Get devices outdoor chime level."""
         settings_json = self._device_json.get(CONST.SETTINGS,{})
-        return int(settings_json.get(CONST.VIDEO_PROFILE, "0"))
-
+        return settings_json.get(CONST.OUTDOOR_CHIME_FILE, CONST.CHIME_1WAV)
+    
     @property
-    def led_rgb(self) -> tuple[int, int, int]:
-        """Get devices LED color."""
-        #TODO Update to led_color
+    def speaker_volume(self) -> int:
+        """Get devices livestream volume."""
         settings_json = self._device_json.get(CONST.SETTINGS,{})
-        return (
-            int(settings_json.get(CONST.LED_R, 0)),
-            int(settings_json.get(CONST.LED_G, 0)),
-            int(settings_json.get(CONST.LED_B, 0)),
-        )
-
+        return int(settings_json.get(CONST.SPEAKER_VOLUME, CONST.SPEAKER_VOLUME_LOW))
+        
     @property
-    def led_intensity(self) -> int:
-        """Get devices LED intensity."""
+    def button_tone_file(self) -> str:
+        """Get devices tone file for a button."""
+        tones_json = self._device_json.get(CONST.TONES,{})
+        button_tone = tones_json.get(CONST.BUTTON_TONE, None)
+        if button_tone is None:
+            result = CONST.TONE_FILE_DEFAULT
+        else:
+            result = button_tone.get(CONST.TONE_FILE, CONST.TONE_FILE_DEFAULT)
+        return result
+    
+    @property
+    def led_control(self) -> str:
+        """Get devices LED Control."""
         settings_json = self._device_json.get(CONST.SETTINGS,{})
-        return int(settings_json.get(CONST.BRIGHTNESS, "0"))
+        return settings_json.get(CONST.LED_CONTROL, "")
 
     @property
-    def desc(self) -> str:
-        """Get a short description of the device."""
-        # Front Door (id: ) - skybell hd - status: up - wifi status: good
-        string = f"{self.name} (id: {self.device_id}) - {self.type}"
-        return f"{string} - status: {self.status} - wifi status: {self.wifi_status}"
+    def led_color(self) -> [int, int, int]:
+        """Get devices LED color as red, green blue integers."""
+        settings_json = self._device_json.get(CONST.SETTINGS,{})
+        hex_string = settings_json.get(CONST.LED_COLOR, "")
+        
+        if not hex_string:
+            return [0,0,0]
+        else:
+            int_array = [int(hex_string[i:i+2], 16) for i in range(1, len(hex_string), 2)]
+            return int_array
+    
+    @property
+    def normal_led(self) -> bool:
+        "Get the devices normal led enablement property."
+        hex_string = ""
+        if self.led_control == CONST.NORMAL_LED_CONTROL:
+            settings_json = self._device_json.get(CONST.SETTINGS,{})
+            hex_string = settings_json.get(CONST.LED_COLOR, "")
+        return len(hex_string) > 0
 
+    @property
+    def image_quality(self) -> int:
+        """Get devices livestream resolution."""
+        settings_json = self._device_json.get(CONST.SETTINGS,{})
+        return int(settings_json.get(CONST.IMAGE_QUALITY, CONST.IMAGE_QUALITY_LOW))
+
+    @property
+    def wifi_link_quality(self) -> str:
+        """Get the wifi status."""
+        telemetry = self._device_json.get(CONST.DEVICE_TELEMETRY,{})
+        return telemetry.get(CONST.WIFI_LINK_QUALITY, "")
+
+    @property
+    def wifi_ssid(self) -> str:
+        """Get the wifi ssid."""
+        telemetry = self._device_json.get(CONST.DEVICE_TELEMETRY,{})
+        ssid = telemetry.get(CONST.WIFI_SSID, "")
+        if not ssid:
+            settings_json = self._device_json.get(CONST.SETTINGS,{})
+            ssid = settings_json.get(CONST.WIFI_ESSID, "")
+        return ssid
 
 def _validate_setting(  # pylint:disable=too-many-branches
     setting: str, value: str | int
 ) -> None:
-    """Validate the setting and value."""
-    if setting == CONST.DO_NOT_DISTURB:
+    """Validate the public property setting and value."""
+    if setting in CONST.BOOL_SETTINGS:
         if value not in CONST.BOOL_STRINGS:
             raise SkybellException(ERROR.INVALID_SETTING_VALUE, (setting, value))
 
-    if setting == CONST.DO_NOT_RING:
-        if value not in CONST.BOOL_STRINGS:
-            raise SkybellException(ERROR.INVALID_SETTING_VALUE, (setting, value))
-
-    if setting == CONST.OUTDOOR_CHIME:
+    if setting == CONST.OUTDOOR_CHIME_VOLUME:
         if value not in CONST.OUTDOOR_CHIME_VALUES:
             raise SkybellException(ERROR.INVALID_SETTING_VALUE, (setting, value))
 
-    if setting == CONST.MOTION_THRESHOLD:
-        if value not in CONST.MOTION_THRESHOLD_VALUES:
+    if setting == CONST.SPEAKER_VOLUME:
+        if value not in CONST.SPEAKER_VOLUME_VALUES:
             raise SkybellException(ERROR.INVALID_SETTING_VALUE, (setting, value))
 
-    if setting == CONST.VIDEO_PROFILE:
-        if value not in CONST.VIDEO_PROFILE_VALUES:
+    if setting == CONST.CHIME_FILE:
+        if value not in CONST.CHIME_FILE_VALUES:
             raise SkybellException(ERROR.INVALID_SETTING_VALUE, (setting, value))
 
-    if setting in CONST.LED_COLORS:
-        if not CONST.LED_VALUES[0] <= int(value) <= CONST.LED_VALUES[1]:
+    if setting == CONST.OUTDOOR_CHIME_FILE:
+        if value not in CONST.CHIME_FILE_VALUES:
             raise SkybellException(ERROR.INVALID_SETTING_VALUE, (setting, value))
+    
+    if setting == CONST.IMAGE_QUALITY:
+        if value not in CONST.IMAGE_QUALITY_VALUES:
+            raise SkybellException(ERROR.INVALID_SETTING_VALUE, (setting, value))
+        
+    """
+    if setting == CONST.TONES:
+        for entry in value.values():
+            if entry is not None:
+                if entry[CONST.TONE_FILE] not in CONST.TONE_FILE_VALUES:
+                    raise SkybellException(ERROR.INVALID_SETTING_VALUE, (setting, entry))
 
     if setting == CONST.BRIGHTNESS:
         if not CONST.BRIGHTNESS_VALUES[0] <= int(value) <= CONST.BRIGHTNESS_VALUES[1]:
             raise SkybellException(ERROR.INVALID_SETTING_VALUE, (setting, value))
+    """
