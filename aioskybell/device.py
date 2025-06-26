@@ -89,7 +89,8 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
         if refresh or snapshot_json or not self._snapshot_json:
             result = await self._async_snapshot_request()
             # Update the image for the avatar snapshot.
-            if result[CONST.PREVIEW_CREATED_AT] != self._snapshot_json.get(CONST.PREVIEW_CREATED_AT):
+            if (result[CONST.PREVIEW_CREATED_AT] 
+                != self._snapshot_json.get(CONST.PREVIEW_CREATED_AT,"")):
                 base64_string = result[CONST.PREVIEW_IMAGE]
                 self.images[CONST.SNAPSHOT] = b64decode(base64_string)
             self._snapshot_json = result
@@ -164,7 +165,9 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
         return latest
 
     async def async_set_setting(
-        self, key: str, value: bool | str | int | tuple[int, int, int]
+        self,
+        key: str,
+        value: bool | str | int | tuple[int, int, int] | dict
     ) -> None:
         # Set an attribute for the device.
         # The key isn't necessarily equal to the corresponding field
@@ -177,9 +180,8 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
 
             rgb_value = "#{0:02x}{1:02x}{2:02x}".format(value[0], value[1], value[2])
             return await self._async_set_setting({key: rgb_value})
-        
-        # Normal LED control of false has to reset the LED COLOR to Empty
-        if key == CONST.NORMAL_LED:
+        elif key == CONST.NORMAL_LED:
+            # Normal LED control of false has to reset the LED COLOR to Empty
             if not isinstance(value, bool):
                 raise SkybellException(self, value)
             key = CONST.LED_COLOR
@@ -190,7 +192,8 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
                     value = CONST.DEFAULT_NORMAL_LED_COLOR
             else:
                 value = ""
-
+        elif key == CONST.NAME:
+            key = CONST.DEVICE_NAME
  
         # UPdate the settings value for the key
         return await self._async_set_setting({key: value})
@@ -198,7 +201,7 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
     async def _async_set_setting(self, settings: dict[str, str | int]) -> None:
         """Validate the settings and then send the POST request."""
         for key, value in settings.items():
-            _validate_setting(key, value)
+            self._validate_setting(key, value)
 
         try:
             result = await self._async_settings_request(
@@ -212,6 +215,11 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
         if result is not None:
             old_settings = self._device_json.get(CONST.SETTINGS, {})
             UTILS.update(old_settings, result)
+
+            # Several fields
+            if (key == CONST.DEVICE_NAME or
+                key == CONST.BASIC_MOTION):
+                await self.async_update(get_devices=True)
 
     async def async_get_activity_video_url(self, video: str | None = None) -> str:
         """Get activity video. Return latest if no video specified."""
@@ -248,6 +256,42 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
         act_url = str.replace(CONST.ACTIVITY_VIDEO_URL, "$ACTID$", video)
         await self._skybell.async_send_request(act_url, method=CONST.HTTPMethod.DELETE)
 
+    def _validate_setting(self, setting: str, value: str | int | bool
+    ) -> None:
+        """Validate the public property setting and value."""
+        
+        if (setting in CONST.MOTION_FIELDS and not self.motion_detection):
+                # Motion fields cannot be updated if motion detection is false
+                raise SkybellException(ERROR.INVALID_SETTING_VALUE, (setting, value))
+        elif setting in CONST.BOOL_SETTINGS:
+            if not isinstance(value, bool):
+                raise SkybellException(ERROR.INVALID_SETTING_VALUE, (setting, value))
+        elif setting == CONST.BASIC_MOTION:
+            for field, field_value in value.items():
+                if field not in CONST.BASIC_MOTION_FIELDS:
+                    raise SkybellException(ERROR.INVALID_SETTING_VALUE, (setting, value))
+                elif not isinstance(field_value, bool):
+                    raise SkybellException(ERROR.INVALID_SETTING_VALUE, (setting, value))
+        elif setting == CONST.OUTDOOR_CHIME_VOLUME:
+            if value not in CONST.OUTDOOR_CHIME_VALUES:
+                raise SkybellException(ERROR.INVALID_SETTING_VALUE, (setting, value))
+        elif setting == CONST.SPEAKER_VOLUME:
+            if value not in CONST.SPEAKER_VOLUME_VALUES:
+                raise SkybellException(ERROR.INVALID_SETTING_VALUE, (setting, value))
+        elif setting == CONST.IMAGE_QUALITY:
+            if value not in CONST.IMAGE_QUALITY_VALUES:
+                raise SkybellException(ERROR.INVALID_SETTING_VALUE, (setting, value))
+        elif setting in CONST.GRANULAR_PCT_SETTINGS:
+            if not isinstance(value, int):
+                raise SkybellException(ERROR.INVALID_SETTING_VALUE, (setting, value))
+            if value > CONST.SENSITIVITY_MAX:
+                raise SkybellException(ERROR.INVALID_SETTING_VALUE, (setting, value))
+        elif setting in CONST.DETAIL_SENSITIVITY_SETTINGS:
+            if not isinstance(value, int):
+                raise SkybellException(ERROR.INVALID_SETTING_VALUE, (setting, value))
+            if (value > CONST.SENSITIVITY_MAX and value != CONST.USE_MOTION_SENSITIVITY):
+                raise SkybellException(ERROR.INVALID_SETTING_VALUE, (setting, value))
+            
     @property
     def user_id(self) -> str:
         """Get user id that owns the device."""
@@ -310,14 +354,6 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
         return lc > ld
 
     @property
-    def location(self) -> tuple[str, str]:
-        """Return lat and lng tuple."""
-        return (
-            self._device_json.get(CONST.LOCATION_LAT, "0"),
-            self._device_json.get(CONST.LOCATION_LON, "0"),
-        )
-
-    @property
     def last_connected(self) -> datetime:
         """Get last connected timestamp."""
         tss = self._device_json.get(CONST.LAST_CONNECTED, "")
@@ -351,9 +387,41 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
         return ts
 
     @property
+    def wifi_link_quality(self) -> str:
+        """Get the wifi status."""
+        telemetry = self._device_json.get(CONST.DEVICE_TELEMETRY,{})
+        return telemetry.get(CONST.WIFI_LINK_QUALITY, "")
+
+    @property
+    def wifi_ssid(self) -> str:
+        """Get the wifi ssid."""
+        telemetry = self._device_json.get(CONST.DEVICE_TELEMETRY,{})
+        ssid = telemetry.get(CONST.WIFI_SSID, "")
+        if not ssid:
+            settings_json = self._device_json.get(CONST.SETTINGS,{})
+            ssid = settings_json.get(CONST.WIFI_ESSID, "")
+        return ssid
+
+    @property
+    def location(self) -> tuple[str, str]:
+        """Return lat and lng tuple."""
+        settings_json = self._device_json.get(CONST.SETTINGS,{})
+        timezone_info = settings_json.get(CONST.TIMEZONE_INFO, {})
+        return (
+            str(timezone_info.get(CONST.LOCATION_LAT, 0)),
+            str(timezone_info.get(CONST.LOCATION_LON, 0)),
+        )
+
+    @property
+    def button_pressed(self) -> bool:
+        "Get the devices button pressed notification property."
+        settings_json = self._device_json.get(CONST.SETTINGS,{})
+        return settings_json.get(CONST.BUTTON_PRESSED)
+
+    @property
     def indoor_chime(self) -> bool:
         """Get if the devices indoor chime is enabled."""
-        settings_json = self._device_json.get(CONST.SETTINGS,{})
+        settings_json = self._device_json.get(CONST.SETTINGS, {})
         return settings_json.get(CONST.INDOOR_CHIME)
 
     @property
@@ -361,11 +429,6 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
         """Get if the devices indoor digital chime is enabled."""
         settings_json = self._device_json.get(CONST.SETTINGS,{})
         return settings_json.get(CONST.INDOOR_DIGITAL_CHIME)
-    @property
-    def chime_file(self) -> str:
-        """Get devices outdoor chime level."""
-        settings_json = self._device_json.get(CONST.SETTINGS,{})
-        return settings_json.get(CONST.CHIME_FILE, CONST.CHIME_1WAV)
 
     @property
     def outdoor_chime(self) -> bool:
@@ -379,12 +442,6 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
         settings_json = self._device_json.get(CONST.SETTINGS,{})
         return int(settings_json.get(CONST.OUTDOOR_CHIME_VOLUME, CONST.OUTDOOR_CHIME_LOW))
 
-    @property
-    def outdoor_chime_file(self) -> str:
-        """Get devices outdoor chime level."""
-        settings_json = self._device_json.get(CONST.SETTINGS,{})
-        return settings_json.get(CONST.OUTDOOR_CHIME_FILE, CONST.CHIME_1WAV)
-    
     @property
     def speaker_volume(self) -> int:
         """Get devices livestream volume."""
@@ -425,45 +482,61 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
         return int(settings_json.get(CONST.IMAGE_QUALITY, CONST.IMAGE_QUALITY_LOW))
 
     @property
-    def wifi_link_quality(self) -> str:
-        """Get the wifi status."""
-        telemetry = self._device_json.get(CONST.DEVICE_TELEMETRY,{})
-        return telemetry.get(CONST.WIFI_LINK_QUALITY, "")
+    def motion_detection(self) -> bool:
+        """Get devices detection setting for triggering events 
+        and recordings when motion is detected.
+        """
+        settings_json = self._device_json.get(CONST.SETTINGS,{})
+        return bool(settings_json.get(CONST.MOTION_DETECTION, False))
 
     @property
-    def wifi_ssid(self) -> str:
-        """Get the wifi ssid."""
-        telemetry = self._device_json.get(CONST.DEVICE_TELEMETRY,{})
-        ssid = telemetry.get(CONST.WIFI_SSID, "")
-        if not ssid:
-            settings_json = self._device_json.get(CONST.SETTINGS,{})
-            ssid = settings_json.get(CONST.WIFI_ESSID, "")
-        return ssid
+    def debug_motion_detection(self) -> bool:
+        """Get devices detection setting for placing boxes around
+        detected motion.
+        """
+        settings_json = self._device_json.get(CONST.SETTINGS,{})
+        return bool(settings_json.get(CONST.DEBUG_MOTION_DETECTION, False))
 
-def _validate_setting(  # pylint:disable=too-many-branches
-    setting: str, value: str | int
-) -> None:
-    """Validate the public property setting and value."""
-    if setting in CONST.BOOL_SETTINGS:
-        if value not in CONST.BOOL_STRINGS:
-            raise SkybellException(ERROR.INVALID_SETTING_VALUE, (setting, value))
+    @property
+    def motion_sensitivity(self) -> int:
+        """Get devices sensitivity in order to detect motion.
+        Value 0 - Low, 1 - Medium, High - 2, 3-1000 .1% increment
+        """
+        settings_json = self._device_json.get(CONST.SETTINGS,{})
+        return int(settings_json.get(CONST.MOTION_SENSITIVITY, 0))
 
-    if setting == CONST.OUTDOOR_CHIME_VOLUME:
-        if value not in CONST.OUTDOOR_CHIME_VALUES:
-            raise SkybellException(ERROR.INVALID_SETTING_VALUE, (setting, value))
+    @property
+    def hmbd_sensitivity(self) -> int:
+        """Get devices sensitivity in order to detect human body.
+        Value 0 - Low, 1 - Medium, High - 2, 3-1000 .1% increment
+        Value USE_MOTION_SENSITIVITY - Tells device to use 
+        motion_sensitivy value.
+        """
+        settings_json = self._device_json.get(CONST.SETTINGS,{})
+        return int(settings_json.get(CONST.MOTION_HMBD_SENSITIVITY, 0))
 
-    if setting == CONST.SPEAKER_VOLUME:
-        if value not in CONST.SPEAKER_VOLUME_VALUES:
-            raise SkybellException(ERROR.INVALID_SETTING_VALUE, (setting, value))
+    @property
+    def fd_sensitivity(self) -> int:
+        """Get devices sensitivity in order to detect human face.
+        Value 0 - Low, 1 - Medium, High - 2, 3-1000 .1% increment
+        Value USE_MOTION_SENSITIVITY - Tells device to use 
+        motion_sensitivy value.
+        """
+        settings_json = self._device_json.get(CONST.SETTINGS,{})
+        return int(settings_json.get(CONST.MOTION_FD_SENSITIVITY, 0))
 
-    if setting == CONST.CHIME_FILE:
-        if value not in CONST.CHIME_FILE_VALUES:
-            raise SkybellException(ERROR.INVALID_SETTING_VALUE, (setting, value))
+    @property
+    def pir_sensitivity(self) -> int:
+        """Get devices passive infrared (pir) sensitivity when 
+        detecting motion.
+        Value 0 - Low, 1 - Medium, High - 2, 3-1000 .1% increment
+        """
+        settings_json = self._device_json.get(CONST.SETTINGS,{})
+        return int(settings_json.get(CONST.MOTION_PIR_SENSITIVITY, 0))
 
-    if setting == CONST.OUTDOOR_CHIME_FILE:
-        if value not in CONST.CHIME_FILE_VALUES:
-            raise SkybellException(ERROR.INVALID_SETTING_VALUE, (setting, value))
-    
-    if setting == CONST.IMAGE_QUALITY:
-        if value not in CONST.IMAGE_QUALITY_VALUES:
-            raise SkybellException(ERROR.INVALID_SETTING_VALUE, (setting, value))
+    @property
+    def basic_motion(self) -> dict:
+        """Get devices basic motion rules (recording, notification).
+        """
+        settings_json = self._device_json.get(CONST.SETTINGS,{})
+        return (settings_json.get(CONST.BASIC_MOTION, {}))
