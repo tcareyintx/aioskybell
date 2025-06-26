@@ -71,8 +71,6 @@ SHARED = "shared"
 UPDATED_AT = "updated_at"
 INVITE_TOKEN = "invite_token"
 CERTIFICATE_ID = "certificate_id"
-USING_RULES = "using_rules"
-TONES = "tones"
 
 # DEVICE INFO
 DEVICE_SETTINGS = "device_settings"
@@ -97,13 +95,6 @@ WIFI_SIGNAL_LEVEL = "signal_level"
 WIFI_NETWORK_SIGNAL = "network_frequency"
 WIFI_NOISE = "wifi_noise"
 WIFI_SSID = "essid"
-
-# TONE SETTINGS
-TONES = "tones"
-BUTTON_TONE = "button"
-MOTION_TONE = "motion"
-TONE_FILE = "file"
-TONE_TIME = "last_updated"
 
 # DEVICE ACTIVITIES
 ACTIVITY = "activity"
@@ -179,43 +170,6 @@ SPEAKER_VOLUME_VALUES = [
     SPEAKER_VOLUME_HIGH,
 ]
 
-# TONE PLAYED ON BUTTON PRESS
-CHIME_USER_WAV = "user.wav"
-CHIME_1WAV = "1.wav"
-CHIME_2WAV = "2.wav"
-CHIME_3WAV = "3.wav"
-CHIME_4WAV = "4.wav"
-CHIME_5WAV = "5.wav"
-CHIME_6WAV = "6.wav"
-CHIME_7WAV = "7.wav"
-CHIME_8WAV = "8.wav"
-CHIME_9WAV = "9.wav"
-CHIME_CARTOON = "cartoon-melodic-bell.wav"
-CHIME_HOME = "home.wav"
-CHIME_MODERN = "modern.wav"
-CHIME_OMP = "onemomentplease.wav"
-CHIME_SPRESS = "single-press.wav"
-CHIME_WRING = "wifi_ring.wav"
-
-CHIME_FILE_VALUES = [
-    CHIME_USER_WAV,
-    CHIME_1WAV,
-    CHIME_2WAV,
-    CHIME_3WAV,
-    CHIME_4WAV,
-    CHIME_5WAV,
-    CHIME_6WAV,
-    CHIME_7WAV,
-    CHIME_8WAV,
-    CHIME_9WAV,
-    CHIME_CARTOON,
-    CHIME_HOME,
-    CHIME_MODERN,
-    CHIME_OMP,
-    CHIME_SPRESS,
-    CHIME_WRING,
-]
-
 LED_VALUES = [0, 255]
 NORMAL_LED_CONTROL = "Normal"
 NORMAL_LED = "normal_led"
@@ -230,13 +184,6 @@ IMAGE_QUALITY_VALUES = [
     IMAGE_QUALITY_MEDIUM,
     IMAGE_QUALITY_HIGH,
     IMAGE_QUALITY_HIGHEST,
-]
-
-# TONE PLAYED ON BUTTON or MOTION
-TONE_FILE_DEFAULT = ""
-TONE_FILE_VALUES = [
-    "1950s_mechanical_doorbell.wav",
-    "357_unholster.wav",
 ]
 
 MOTION_POLICY_OFF = "disabled"
@@ -266,7 +213,6 @@ ATTR_WIFI_SSID = "wifi_ssid"
 ATTR_WIFI_STATUS = "wifi_status"
 
 ATTR_OWNER_STATS = [ATTR_LAST_CHECK_IN, ATTR_WIFI_SSID, ATTR_WIFI_STATUS]
-
 
 STATE = "state"
 STATE_READY = "ready"

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime
 from base64 import b64decode
 from typing import TYPE_CHECKING, Any, cast
 
@@ -191,24 +191,7 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
             else:
                 value = ""
 
-        """
-        # Button and Motion tones need to update the entry in the tones dictionary
-        if key == CONST.BUTTON_TONE or key == CONST.MOTION_TONE:
-            if not isinstance(value, str):
-                raise SkybellException(self, value)
-            tones = self._device_json.get(CONST.TONES, {})
-            if key in tones:
-                tone = tones.get(key, {})
-                if tone is None:
-                    tone = {}
-                tone[CONST.TONE_FILE] = value
-                tone[CONST.TONE_TIME] = datetime.now(timezone.utc).isoformat()
-                tones[key] = tone
-            else:
-                raise SkybellException(self, value)
-            return await self._async_set_setting({CONST.TONES: tones})
-        """
-        
+ 
         # UPdate the settings value for the key
         return await self._async_set_setting({key: value})
 
@@ -407,17 +390,6 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
         """Get devices livestream volume."""
         settings_json = self._device_json.get(CONST.SETTINGS,{})
         return int(settings_json.get(CONST.SPEAKER_VOLUME, CONST.SPEAKER_VOLUME_LOW))
-        
-    @property
-    def button_tone_file(self) -> str:
-        """Get devices tone file for a button."""
-        tones_json = self._device_json.get(CONST.TONES,{})
-        button_tone = tones_json.get(CONST.BUTTON_TONE, None)
-        if button_tone is None:
-            result = CONST.TONE_FILE_DEFAULT
-        else:
-            result = button_tone.get(CONST.TONE_FILE, CONST.TONE_FILE_DEFAULT)
-        return result
     
     @property
     def led_control(self) -> str:
@@ -495,15 +467,3 @@ def _validate_setting(  # pylint:disable=too-many-branches
     if setting == CONST.IMAGE_QUALITY:
         if value not in CONST.IMAGE_QUALITY_VALUES:
             raise SkybellException(ERROR.INVALID_SETTING_VALUE, (setting, value))
-        
-    """
-    if setting == CONST.TONES:
-        for entry in value.values():
-            if entry is not None:
-                if entry[CONST.TONE_FILE] not in CONST.TONE_FILE_VALUES:
-                    raise SkybellException(ERROR.INVALID_SETTING_VALUE, (setting, entry))
-
-    if setting == CONST.BRIGHTNESS:
-        if not CONST.BRIGHTNESS_VALUES[0] <= int(value) <= CONST.BRIGHTNESS_VALUES[1]:
-            raise SkybellException(ERROR.INVALID_SETTING_VALUE, (setting, value))
-    """
