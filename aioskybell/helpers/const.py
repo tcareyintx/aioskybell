@@ -9,6 +9,7 @@ class HTTPMethod(Enum):
     GET = "GET"
     PATCH = "PATCH"
     POST = "POST"
+    PUT = "PUT"
 
 
 CACHE_PATH = "./skybell.pickle"
@@ -22,6 +23,7 @@ BASE_API_URL = BASE_API_DOMAIN + BASE_URL
 
 LOGIN_URL = BASE_AUTH_DOMAIN + BASE_URL + "/login/"
 LOGOUT_URL = BASE_AUTH_DOMAIN + BASE_URL + "/logout/"
+REFRESH_TOKEN_URL = BASE_AUTH_DOMAIN + BASE_URL + "/token/"
 
 USER_URL = BASE_API_URL + "/user/"
 
@@ -37,17 +39,10 @@ ACTIVITY_VIDEO_URL = BASE_API_URL
 DEVICE_ACTIVITIES_URL = ACTIVITIES_URL + "?device_id=$DEVID$"
 
 # GENERAL
-ACCESS_TOKEN = "AccessToken"
-AUTHENTICATION_RESULT = "AuthenticationResult"
-
-APP_ID = "app_id"
-CLIENT_ID = "client_id"
-DEVICES = "devices"
-TOKEN = "token"
-APP_VERSION = "1.238.1"
 RESPONSE_DATA = "data"
 RESPONSE_ROWS = "rows"
-
+RESPONSE_MESSAGE = "message"
+RESPONSE_ERROR = "error"
 STATUS_UP = "Up"
 STATUS_DOWN = "Down"
 
@@ -55,6 +50,17 @@ STATUS_DOWN = "Down"
 USER_ID = "account_id"
 FIRST_NAME = "fname"
 LAST_NAME = "lname"
+
+# Authentication and REQUEDT HEADER
+AUTHENTICATION_RESULT = "AuthenticationResult"
+ACCESS_TOKEN = "AccessToken"
+ID_TOKEN = "IdToken"
+TOKEN_TYPE = "TokenType"
+TOKEN_EXPIRATION = "ExpiresIn"
+REFRESH_TOKEN = "RefreshToken"
+REFRESH_TOKEN_BODY = "refresh_token"
+TOKEN_REFRESHED = "Refreshed"
+APP_VERSION = "1.238.1"
 
 # DEVICE
 DEVICE_ID = "device_id"
