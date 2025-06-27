@@ -4,10 +4,9 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 from base64 import b64decode
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 import aiofiles
-from ciso8601 import parse_datetime  # pylint:disable=no-name-in-module
 
 from . import utils as UTILS
 from .exceptions import SkybellException
@@ -113,8 +112,11 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
             if len(url) > 0:
                 url = CONST.BASE_API_URL + url
                 response = await self._skybell.async_send_request(url)
-                url = response.get(CONST.DOWNLOAD_URL, "")
-                if not url:
+                if response is None:
+                    url = ""
+                else:
+                    url = response.get(CONST.DOWNLOAD_URL, "")
+                if url:
                     response = await self._skybell.async_send_request(url)
                     self.images[CONST.ACTIVITY] = response
 
@@ -146,15 +148,6 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
         _LOGGER.debug(self._events)
 
         # The event (e.g. button, motion is passed
-        # TODO Fix the event names in routine
-        if event:
-            _evt: dict[str, str]
-            if not (_evt := self._events.get(f"device:sensor:{event}", {})):
-                _default = {CONST.EVENT_TIME: "1970-01-01T00:00:00.000Z"}
-                _evt = self._events.get(f"application:on-{event}", _default)
-            _entry = {CONST.EVENT_TIME: parse_datetime(_evt[CONST.EVENT_TIME])}
-            return cast(ActivityData, _evt | _entry)
-
         latest: ActivityData = ActivityData()
         latest_date = None
         for evt in self._events.values():
@@ -222,8 +215,17 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
                 await self.async_update(get_devices=True)
 
     async def async_get_activity_video_url(self, video: str | None = None) -> str:
-        """Get activity video. Return latest if no video specified."""
-        act_url = str.replace(CONST.ACTIVITY_VIDEO_URL, "$ACTID$", video or self.latest()[CONST.ACTIVITY_ID])
+        """Get url for the video to download.
+        If an activity video url is not passed use the latest video url.
+        """
+        if not video:
+            activity = self.latest()
+            video = activity.get(CONST.VIDEO_URL, "")
+            
+        if not video:
+            return ""
+            
+        act_url = CONST.ACTIVITY_VIDEO_URL + video
         response = await self._skybell.async_send_request(act_url)
         return response.get(CONST.DOWNLOAD_URL, "")
 
@@ -234,7 +236,13 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
         limit: int = 1,
         delete: bool = False,
     ) -> None:
-        """Download videos to specified path."""
+        """Download videos to specified path.
+        path (optional): path to save the videos.
+            if path is not passed, use the path to the cache.
+        video (optional): video url is passed use that url
+            if video url is not passed download the from the activities with limit
+        if delete is passed and true request to delete the activity after saving
+        """
         _path = self._skybell._cache_path[:-7]  # pylint:disable=protected-access
         if video and (_id := [ev for ev in self._activities if video == ev[CONST.VIDEO_URL]]):
             return await self._async_save_video(path or _path, _id[0], delete)
@@ -244,18 +252,31 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
     async def _async_save_video(
         self, path: str, event: ActivityData, delete: bool
     ) -> None:
-        """Write video from S3 to file."""
+        """Write video from S3 to file.
+        Place the file in path directory passed.
+        If delete is true, delete the associated activity.
+        """
         async with aiofiles.open(f"{path}_{event[CONST.EVENT_TIME]}.mp4", "wb") as file:
             url = await self.async_get_activity_video_url(event[CONST.VIDEO_URL])
             await file.write(await self._skybell.async_send_request(url))
         if delete:
-            await self.async_delete_video(event[CONST.VIDEO_URL])
+            await self.async_delete_activity(event[CONST.ACTIVITY_ID])
 
-    async def async_delete_video(self, video: str) -> None:
-        """Delete video with specified activity id."""
-        act_url = str.replace(CONST.ACTIVITY_VIDEO_URL, "$ACTID$", video)
+    async def async_delete_activity(self, activity_id: str) -> None:
+        """Delete activity with specified activity id."""
+        act_url = str.replace(CONST.ACTIVITY_URL, "$ACTID$", activity_id)
         await self._skybell.async_send_request(act_url, method=CONST.HTTPMethod.DELETE)
-
+        
+        # Clean out the local events
+        for key, act in list(self._events.items()):
+            if act[CONST.ACTIVITY_ID] == activity_id:
+                self._events.pop(key)
+                break  
+        for act in self._activities:
+            if act[CONST.ACTIVITY_ID] == activity_id:
+                self._activities.remove(act)
+                break
+    
     def _validate_setting(self, setting: str, value: str | int | bool
     ) -> None:
         """Validate the public property setting and value."""

@@ -32,8 +32,8 @@ DEVICE_SNAPSHOT_URL = DEVICE_URL + "snapshot/"
 DEVICE_SETTINGS_URL = DEVICE_URL + "settings/"
 
 ACTIVITIES_URL = BASE_API_URL + "/activity"
-ACTIVITY_URL = ACTIVITIES_URL + "/$ACTID$/"
-ACTIVITY_VIDEO_URL = ACTIVITY_URL + "/video/"
+ACTIVITY_URL = ACTIVITIES_URL + "/$ACTID$"
+ACTIVITY_VIDEO_URL = BASE_API_URL
 DEVICE_ACTIVITIES_URL = ACTIVITIES_URL + "?device_id=$DEVID$"
 
 # GENERAL
@@ -65,7 +65,6 @@ LAST_CONNECTED = "last_connected"
 LAST_DISCONNECTED = "last_disconnected"
 LAST_EVENT = "last_event"
 CREATED_AT = "created_at"
-SHARED = "shared"
 UPDATED_AT = "updated_at"
 INVITE_TOKEN = "invite_token"
 CERTIFICATE_ID = "certificate_id"
@@ -82,16 +81,10 @@ WIFI_ESSID = "ESSID"
 #DEVICE TELEMETRY
 DEVICE_TELEMETRY = "telemetry"
 DEVICE_LAST_SEEN = "last_seen"
-DEVICE_UPTIME = "uptime"
-DEVICE_BOOT_TIME = "boot_time"
 DEVICE_IP_ADDRESS = "ip_address"
-DEVICE_IP_SUBNET = "ip_subnet"
-DEVICE_PUBLIC_IP = "ip_address_public"
 
 WIFI_LINK_QUALITY = "link_quality"
 WIFI_SIGNAL_LEVEL = "signal_level"
-WIFI_NETWORK_SIGNAL = "network_frequency"
-WIFI_NOISE = "wifi_noise"
 WIFI_SSID = "essid"
 
 # DEVICE ACTIVITIES
@@ -123,7 +116,6 @@ INDOOR_DIGITAL_CHIME = "digital_chime"
 CHIME_FILE = "chime_file"
 OUTDOOR_CHIME = "outdoor_chime"
 OUTDOOR_CHIME_VOLUME = "outdoor_chime_volume"
-OUTDOOR_CHIME_FILE = "outdoor_chime_file"
 SPEAKER_VOLUME = "speaker_volume"
 
 # MOTION SETTiNGS
@@ -145,7 +137,6 @@ BASIC_MOTION_HBD_RECORD = "hbd_record"
 
 # IMAGE SETTINGS
 IMAGE_QUALITY = "image_quality"
-VIDEO_ROTATION = "video_rotation"
 
 # LOCATION SETTINGS
 TIMEZONE_INFO = "time_zone_info"
