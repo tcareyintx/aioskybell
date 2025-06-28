@@ -21,6 +21,7 @@ from .helpers.models import (  # isort:skip
     SettingsData
 )
 from aioskybell.helpers.const import RESPONSE_ROWS
+from pickle import NONE
 
 
 if TYPE_CHECKING:
@@ -107,8 +108,8 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
         # Update the selected events from the activity list.
         await self._async_update_events()
 
-        # Update the images for the activity.
-        if url := self.latest().get(CONST.VIDEO_URL, ""):
+        # Update the latest activity image.
+        if (url := self.latest().get(CONST.VIDEO_URL, "")):
             if len(url) > 0:
                 url = CONST.BASE_API_URL + url
                 response = await self._skybell.async_send_request(url)
@@ -116,9 +117,7 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
                     url = ""
                 else:
                     url = response.get(CONST.DOWNLOAD_URL, "")
-                if url:
-                    response = await self._skybell.async_send_request(url)
-                    self.images[CONST.ACTIVITY] = response
+                    self.images[CONST.ACTIVITY] = url
 
     async def _async_update_events(
         self, activities: list[ActivityData] | None = None
@@ -143,19 +142,23 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
         # Return the requested number
         return activities[:limit]
 
-    def latest(self, event: str | None = None) -> ActivityData:
+    def latest(self, event_type: str | None = None) -> ActivityData:
         """Return the latest event activity."""
         _LOGGER.debug(self._events)
 
         # The event (e.g. button, motion is passed
-        latest: ActivityData = ActivityData()
+        latest_event: ActivityData = ActivityData()
         latest_date = None
         for evt in self._events.values():
-            date = evt[CONST.EVENT_TIME]
-            if not latest or latest_date is None or latest_date < date:
-                latest = evt
-                latest_date = date
-        return latest
+            if (event_type is not None and
+                evt[CONST.EVENT_TYPE] == event_type):
+                date = evt[CONST.EVENT_TIME]
+                if (not latest_event or 
+                    latest_date is None or 
+                    latest_date < date):
+                    latest_event = evt
+                    latest_date = date
+        return latest_event
 
     async def async_set_setting(
         self,
@@ -375,37 +378,70 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
         return lc > ld
 
     @property
-    def last_connected(self) -> datetime:
+    def last_connected(self) -> datetime | None:
         """Get last connected timestamp."""
-        tss = self._device_json.get(CONST.LAST_CONNECTED, "")
-        try:
-            ts = datetime.fromisoformat(tss)
-        except ValueError:
-            ts = ""
+        tss = self._device_json.get(CONST.LAST_CONNECTED, None)
+        if tss is not None:
+            try:
+                ts = datetime.fromisoformat(tss)
+            except ValueError:
+                ts = None
         return ts
 
     @property
-    def last_disconnected(self) -> datetime:
+    def last_disconnected(self) -> datetime | None:
         """Get last connected timestamp."""
-        tss = self._device_json.get(CONST.LAST_DISCONNECTED, "")
-        try:
-            ts = datetime.fromisoformat(tss)
-        except ValueError:
-            ts = ""
+        tss = self._device_json.get(CONST.LAST_DISCONNECTED, None)
+        if tss is not None:
+            try:
+                ts = datetime.fromisoformat(tss)
+            except ValueError:
+                ts = None
         return ts
     
     @property
-    def last_seen(self) -> datetime:
-        """Get last checkin timestamp. If not availalbe return the last connected"""
+    def last_seen(self) -> datetime | None:
+        """Get last checkin timestamp. 
+        If not availalbe return the last connected.
+        """
         telemetry = self._device_json.get(CONST.DEVICE_TELEMETRY,{})
-        tss = telemetry.get(CONST.DEVICE_LAST_SEEN, "")
+        tss = telemetry.get(CONST.DEVICE_LAST_SEEN, None)
+        if tss is None:
+            tss = self.last_connected
         try:
             ts = datetime.fromisoformat(tss)
         except ValueError:
-            ts = ""
-        if not ts:
-            ts = self.last_connected
+            ts = None
         return ts
+
+    @property
+    def latest_doorbell_event_time(self) -> datetime | None:
+        """Get lastest doorbell event."""
+        act = self.latest(event_type=CONST.DOORBELL_ACTIVITY)
+        if act is not None:
+            act_time = act.get(CONST.EVENT_TIME, None)
+            if act_time is not None:
+                try:
+                    act_time = datetime.fromtimestamp(act_time)
+                except:
+                    act_time = datetime.fromtimestamp(act_time/1000)
+        else:
+            act_time = None
+        return act_time
+
+    @property
+    def latest_motion_event_time(self) -> datetime:
+        """Get lastest notion event."""
+        act = self.latest(event_type=CONST.MOTION_ACTIVITY)
+        if act is not None:
+            act_time = act[CONST.EVENT_TIME]
+            try:
+                act_time = datetime.fromtimestamp(act_time)
+            except:
+                act_time = datetime.fromtimestamp(act_time/1000)
+        else:
+            act_time = None
+        return act_time
 
     @property
     def wifi_link_quality(self) -> str:

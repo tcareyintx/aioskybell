@@ -101,6 +101,8 @@ EVENT_TIME = "event_time"
 VIDEO_URL = "video_url"
 VIDEO_READY = "video_ready"
 DOWNLOAD_URL = "download_url"
+DOORBELL_ACTIVITY = "doorbell"
+MOTION_ACTIVITY = "motion"
 
 # DEVUCE IMAGE SNAPSHOT
 SNAPSHOT = "avatar"
