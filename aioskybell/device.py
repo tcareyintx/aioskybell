@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from base64 import b64decode
 from typing import TYPE_CHECKING, Any
 
@@ -21,7 +21,6 @@ from .helpers.models import (  # isort:skip
     SettingsData
 )
 from aioskybell.helpers.const import RESPONSE_ROWS
-from pickle import NONE
 
 
 if TYPE_CHECKING:
@@ -427,9 +426,9 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
             act_time = act.get(CONST.EVENT_TIME, None)
             if act_time is not None:
                 try:
-                    act_time = datetime.fromtimestamp(act_time)
+                    act_time = datetime.fromtimestamp(act_time, tz=timezone.utc)
                 except:
-                    act_time = datetime.fromtimestamp(act_time/1000)
+                    act_time = datetime.fromtimestamp(act_time/1000, tz=timezone.utc)
         else:
             act_time = None
         return act_time
@@ -441,9 +440,9 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
         if act is not None:
             act_time = act[CONST.EVENT_TIME]
             try:
-                act_time = datetime.fromtimestamp(act_time)
+                act_time = datetime.fromtimestamp(act_time, tz=timezone.utc)
             except:
-                act_time = datetime.fromtimestamp(act_time/1000)
+                act_time = datetime.fromtimestamp(act_time/1000, tz=timezone.utc)
         else:
             act_time = None
         return act_time
