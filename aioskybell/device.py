@@ -315,7 +315,12 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
                 raise SkybellException(ERROR.INVALID_SETTING_VALUE, (setting, value))
             if (value > CONST.SENSITIVITY_MAX and value != CONST.USE_MOTION_SENSITIVITY):
                 raise SkybellException(ERROR.INVALID_SETTING_VALUE, (setting, value))
-            
+  
+    @property
+    def skybell(self) -> Skybell:
+        """Get owning Skybell API hub."""
+        return self._skybell
+              
     @property
     def user_id(self) -> str:
         """Get user id that owns the device."""
