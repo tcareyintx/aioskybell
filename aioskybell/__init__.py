@@ -37,6 +37,7 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
         username: str | None = None,
         password: str | None = None,
         auto_login: bool = False,
+        get_devices: bool = True,
         cache_path: str = CONST.CACHE_PATH,
         disable_cache: bool = False,
         login_sleep: bool = True,
@@ -47,6 +48,7 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
         self._cache_path = cache_path
         self._devices: dict[str, SkybellDevice] = {}
         self._disable_cache = disable_cache
+        self._get_devices = get_devices
         self._password = password
         if username is not None and self._cache_path == CONST.CACHE_PATH:
             self._cache_path = f"skybell_{username.replace('.', '')}.pickle"
@@ -76,15 +78,19 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
         """Initialize."""
         if not self._disable_cache:
             await self._async_load_cache()
+        
+        # Login option on initialization, otherwise wait until
+        # A request is made
         if (
             self._username is not None
             and self._password is not None
             and self._auto_login
         ):
             await self.async_login()
-        # Obtain the user data
+            
+        # Obtain the user data -  which will login
         self._user = await self.async_send_request(CONST.USER_URL)
-        if self._user is not None:
+        if (self._user is not None and self._get_devices):
             # Obtain the devices for the user
             return await self.async_get_devices()
         else:

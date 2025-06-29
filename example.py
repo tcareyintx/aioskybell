@@ -10,7 +10,9 @@ PASSWORD = "password"
 async def async_example():
     """Example usage of aioskybell."""
     # Sign on to Skybell API
-    async with Skybell(username=USER_NAME, password=PASSWORD) as client:
+    async with Skybell(username=USER_NAME, 
+                       password=PASSWORD,
+                       get_devices=True) as client:
         # Update the user and session cache
         await client.async_update_cache({CONST.ACCESS_TOKEN: ""})
         # Get the initial set of devices without events and activities
