@@ -224,19 +224,19 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
         return device
 
     @property
-    def user_id(self) -> str:
+    def user_id(self) -> str | None:
         """Return logged in user id."""
-        return self._user[CONST.USER_ID]
+        return self._user.get(CONST.USER_ID, None)
 
     @property
-    def user_first_name(self) -> str:
+    def user_first_name(self) -> str | None:
         """Return logged in user first name."""
-        return self._user[CONST.FIRST_NAME]
+        return self._user.get(CONST.FIRST_NAME, None)
 
     @property
-    def user_last_name(self) -> str:
+    def user_last_name(self) -> str | None:
         """Return logged in user last name."""
-        return self._user[CONST.LAST_NAME]
+        return self._user.get(CONST.LAST_NAME, None)
     
     @property
     def session_refresh_period(self) -> int:
