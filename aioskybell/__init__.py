@@ -294,10 +294,11 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
                 timeout=ClientTimeout(30),
                 **kwargs,
             )
-            if response.status == 401:
-                await self.async_update_cache({CONST.AUTHENTICATION_RESULT: auth_result})
+            if (response.status == 401 or
+                (response.status == 403 and CONST.LOGIN_URL == url)):
+                await self.async_update_cache({CONST.AUTHENTICATION_RESULT: {}})
                 raise SkybellAuthenticationException(await response.text())
-            if response.status in (403, 404):
+            elif response.status in (403, 404):
                 # 403/404 for expired request/device key no longer present in S3
                 _LOGGER.exception(await response.text())
                 return None
