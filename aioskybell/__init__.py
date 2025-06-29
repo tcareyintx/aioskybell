@@ -190,7 +190,7 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
         # Update the cache entities
         UTILS.update(auth_result, response)
         await self.async_update_cache({CONST.AUTHENTICATION_RESULT: auth_result})
-        _LOGGER.info("Refresh successful")
+        _LOGGER.debug("Refresh successful")
         return True
 
     async def async_get_devices(self, refresh: bool = False) -> list[SkybellDevice]:

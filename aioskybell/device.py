@@ -42,7 +42,7 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
         self._device_json = device_json
         self._skybell = skybell
         device_settings = self._device_json.get(CONST.DEVICE_SETTINGS, {})
-        self._type = device_settings.get(CONST.HARDWARE_VERSION, "")
+        self._type = device_settings.get(CONST.MODEL_REV, "")
         self.images: dict[str, bytes | None] = {CONST.ACTIVITY: None}
         self._events: ActivityType = {}
 
@@ -142,14 +142,15 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
         return activities[:limit]
 
     def latest(self, event_type: str | None = None) -> ActivityData:
-        """Return the latest event activity."""
+        """Return the latest event activity. Allow for a filter by type.
+        """
         _LOGGER.debug(self._events)
 
-        # The event (e.g. button, motion is passed
+        # The event (e.g. button, motion is passed)
         latest_event: ActivityData = ActivityData()
         latest_date = None
         for evt in self._events.values():
-            if (event_type is not None and
+            if (event_type is None or
                 evt[CONST.EVENT_TYPE] == event_type):
                 date = evt[CONST.EVENT_TIME]
                 if (not latest_event or 
