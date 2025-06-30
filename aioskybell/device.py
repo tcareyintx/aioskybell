@@ -69,7 +69,10 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
         """
         url = str.replace(CONST.DEVICE_ACTIVITIES_URL, "$DEVID$", self.device_id)
         response = await self._skybell.async_send_request(url)
-        return response.get(RESPONSE_ROWS,[])
+        if response is None:
+            return []
+        else:
+            return response.get(RESPONSE_ROWS,[])
 
     async def async_update(  # pylint:disable=too-many-arguments
         self,
@@ -107,6 +110,7 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
         # Update the selected events from the activity list.
         await self._async_update_events()
 
+        """
         # Update the latest activity image.
         if (url := self.latest().get(CONST.VIDEO_URL, "")):
             if len(url) > 0:
@@ -117,6 +121,12 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
                 else:
                     url = response.get(CONST.DOWNLOAD_URL, "")
                     self.images[CONST.ACTIVITY] = url
+        """
+        act = self.latest()
+        image = act[CONST.IMAGE]
+        if image is None:
+            image = b''
+        self.images[CONST.ACTIVITY] = image
 
     async def _async_update_events(
         self, activities: list[ActivityData] | None = None
@@ -127,7 +137,8 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
             event_type = activity[CONST.EVENT_TYPE]
             event_time = activity[CONST.EVENT_TIME]
 
-            if not (old := self._events.get(event_type)) or event_time >= old[CONST.EVENT_TIME]:
+            if (not (old := self._events.get(event_type)) or 
+                    event_time >= old[CONST.EVENT_TIME]):
                 self._events[event_type] = activity
 
     def activities(self, limit: int = 1, event: str | None = None) -> list[ActivityData]:

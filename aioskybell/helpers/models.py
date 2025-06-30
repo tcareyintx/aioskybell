@@ -98,7 +98,7 @@ class ActivityData(dict):
     date: str
     video_url: str
     video_ready: bool
-    image: str | None
+    image: bytes | None
     edge_tags: list
     ai_ppe: str | None
     created_at: str

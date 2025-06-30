@@ -36,7 +36,7 @@ DEVICE_SETTINGS_URL = DEVICE_URL + "settings/"
 ACTIVITIES_URL = BASE_API_URL + "/activity"
 ACTIVITY_URL = ACTIVITIES_URL + "/$ACTID$"
 ACTIVITY_VIDEO_URL = BASE_API_URL
-DEVICE_ACTIVITIES_URL = ACTIVITIES_URL + "?device_id=$DEVID$"
+DEVICE_ACTIVITIES_URL = ACTIVITIES_URL + "?device_id=$DEVID$&nopreviews=0"
 
 # GENERAL
 RESPONSE_DATA = "data"
@@ -98,6 +98,7 @@ ACTIVITY = "activity"
 ACTIVITY_ID = "activity_id"
 EVENT_TYPE = "event_type"
 EVENT_TIME = "event_time"
+IMAGE = "image"
 VIDEO_URL = "video_url"
 VIDEO_READY = "video_ready"
 DOWNLOAD_URL = "download_url"
