@@ -61,6 +61,9 @@ REFRESH_TOKEN = "RefreshToken"
 REFRESH_TOKEN_BODY = "refresh_token"
 TOKEN_REFRESHED = "Refreshed"
 APP_VERSION = "1.238.1"
+EXPIRATION_SLACK = 3600
+REFRESH_CYCLE = 30
+EXPIRATION_DATE = "ExpirationDate"
 
 # DEVICE
 DEVICE_ID = "device_id"

@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+from datetime import datetime
 from asyncio.exceptions import TimeoutError as Timeout
 from typing import Any, Collection, cast
 
@@ -130,6 +131,13 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
             _LOGGER.debug("Login Response: %s", response)
             # Store the Authorization result
             auth_result = response[CONST.AUTHENTICATION_RESULT]
+            # Add an expiration date
+            expires_in = auth_result[CONST.TOKEN_EXPIRATION]
+            expiration = UTILS.calculate_expiration(
+                            expires_in=expires_in,
+                            slack=CONST.EXPIRATION_SLACK,
+                            refresh_cycle=CONST.REFRESH_CYCLE)
+            auth_result[CONST.EXPIRATION_DATE] = expiration
             await self.async_update_cache(
                 {CONST.AUTHENTICATION_RESULT: auth_result}
             )
@@ -187,6 +195,13 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
         
         _LOGGER.debug("Token Refresh Response: %s", response)
 
+        # Add an expiration date
+        expires_in = response[CONST.TOKEN_EXPIRATION]
+        expiration = UTILS.calculate_expiration(
+                        expires_in=expires_in,
+                        slack=CONST.EXPIRATION_SLACK,
+                        refresh_cycle=CONST.REFRESH_CYCLE)
+        response[CONST.EXPIRATION_DATE] = expiration
         # Update the cache entities
         UTILS.update(auth_result, response)
         await self.async_update_cache({CONST.AUTHENTICATION_RESULT: auth_result})
@@ -255,6 +270,17 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
         else:
             period = 0
         return period
+
+    @property
+    def session_refresh_timestamp(self) -> datetime | None:
+        """Return expiration datetime that the session will last
+        without a refresh of the login.
+        """
+        auth_result = self.cache(CONST.AUTHENTICATION_RESULT)
+        if auth_result:
+            expires = auth_result.get(CONST.EXPIRATION_DATE,None)
+
+        return expires
 
     async def async_send_request(  # pylint:disable=too-many-arguments
         self,
