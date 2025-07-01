@@ -218,15 +218,19 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
             _LOGGER.warning("Exception changing settings: %s", settings)
             result = None
             
-        # Now we need to update the settings n the local device.
+        # Now we need to update the settings in the local device.
         if result is not None:
-            old_settings = self._device_json.get(CONST.SETTINGS, {})
-            UTILS.update(old_settings, result)
-
-            # Several fields
+            await self.async_update(get_devices=True)
+        """
+        if result is not None:
+            # Several fields are outside are displayed outside settings
             if (key == CONST.DEVICE_NAME or
                 key == CONST.BASIC_MOTION):
                 await self.async_update(get_devices=True)
+            else:
+                old_settings = self._device_json[CONST.SETTINGS]
+                UTILS.update(old_settings, result)
+        """
 
     async def async_get_activity_video_url(self, video: str | None = None) -> str:
         """Get url for the video to download.
