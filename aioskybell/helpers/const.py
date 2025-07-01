@@ -1,4 +1,5 @@
 """AIOSkybell constants."""
+
 from enum import Enum
 
 
@@ -87,7 +88,7 @@ HARDWARE_VERSION = "hardware_version"
 FIRMWARE_VERSION = "firmware_version"
 WIFI_ESSID = "ESSID"
 
-#DEVICE TELEMETRY
+# DEVICE TELEMETRY
 DEVICE_TELEMETRY = "telemetry"
 DEVICE_LAST_SEEN = "last_seen"
 DEVICE_IP_ADDRESS = "ip_address"
@@ -115,7 +116,7 @@ PREVIEW_IMAGE = "preview"
 
 # DEVICE SETTINGS
 SETTINGS = "settings"
-DEVICE_NAME = "device_name" # Used for NAME in settings
+DEVICE_NAME = "device_name"  # Used for NAME in settings
 BUTTON_PRESSED = "button_pressed"
 
 # NORMAL LED SETTINGS
@@ -131,12 +132,12 @@ OUTDOOR_CHIME_VOLUME = "outdoor_chime_volume"
 SPEAKER_VOLUME = "speaker_volume"
 
 # MOTION SETTiNGS
-MOTION_DETECTION = "motion_detection" # Notification for motion
+MOTION_DETECTION = "motion_detection"  # Notification for motion
 DEBUG_MOTION_DETECTION = "debug_motion_detect"
-MOTION_SENSITIVITY = "motion_sensitivity" # Any Motion Detection
-MOTION_HMBD_SENSITIVITY = "hmbd_sensitivity" # Human Motion Body Detection
-MOTION_FD_SENSITIVITY = "fd_sensitivity" # Face Detection
-MOTION_PIR_SENSITIVITY = "pir_sensitivity" #PIR
+MOTION_SENSITIVITY = "motion_sensitivity"  # Any Motion Detection
+MOTION_HMBD_SENSITIVITY = "hmbd_sensitivity"  # Human Motion Body Detection
+MOTION_FD_SENSITIVITY = "fd_sensitivity"  # Face Detection
+MOTION_PIR_SENSITIVITY = "pir_sensitivity"  # PIR
 
 # BASIC MOTION SETTINGS
 BASIC_MOTION = "basic_motion"
@@ -196,7 +197,7 @@ BOOL_SETTINGS = [
     BUTTON_PRESSED,
 ]
 
-#OUTDOOR CHIME FOR DOORBELLS
+# OUTDOOR CHIME FOR DOORBELLS
 OUTDOOR_CHIME_LOW = 0
 OUTDOOR_CHIME_MEDIUM = 1
 OUTDOOR_CHIME_HIGH = 2
@@ -207,7 +208,7 @@ OUTDOOR_CHIME_VALUES = [
     OUTDOOR_CHIME_HIGH,
 ]
 
-#SPEAKER VOLUME
+# SPEAKER VOLUME
 SPEAKER_VOLUME_LOW = 0
 SPEAKER_VOLUME_MEDIUM = 1
 SPEAKER_VOLUME_HIGH = 2
@@ -221,7 +222,7 @@ SPEAKER_VOLUME_VALUES = [
 LED_VALUES = [0, 255]
 NORMAL_LED_CONTROL = "Normal"
 NORMAL_LED = "normal_led"
-DEFAULT_NORMAL_LED_COLOR = "x00ff00" # Green
+DEFAULT_NORMAL_LED_COLOR = "x00ff00"  # Green
 
 IMAGE_QUALITY_LOW = 0
 IMAGE_QUALITY_MEDIUM = 1
@@ -233,4 +234,3 @@ IMAGE_QUALITY_VALUES = [
     IMAGE_QUALITY_HIGH,
     IMAGE_QUALITY_HIGHEST,
 ]
-

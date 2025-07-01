@@ -562,7 +562,7 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
         return bool(settings_json.get(CONST.MOTION_DETECTION, False))
 
     @property
-    def debug_motion_detection(self) -> bool:
+    def debug_motion_detect(self) -> bool:
         """Get devices detection setting for placing boxes around
         detected motion.
         """
