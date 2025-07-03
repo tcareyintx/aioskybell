@@ -67,6 +67,8 @@ REFRESH_CYCLE = 30
 EXPIRATION_DATE = "ExpirationDate"
 
 # DEVICE
+SHARED = "shared"
+SHARED_READ_ONLY = "shared_read_only"
 DEVICE_ID = "device_id"
 NAME = "name"
 ACCOUNT_ID = "account_id"
@@ -233,4 +235,9 @@ IMAGE_QUALITY_VALUES = [
     IMAGE_QUALITY_MEDIUM,
     IMAGE_QUALITY_HIGH,
     IMAGE_QUALITY_HIGHEST,
+]
+
+ACL_EXCLUSIONS = [
+    BUTTON_PRESSED,
+    MOTION_DETECTION,
 ]

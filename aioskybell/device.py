@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any
 import aiofiles
 
 from . import utils as UTILS
-from .exceptions import SkybellException
+from .exceptions import SkybellException, SkybellAccessControlException
 from .helpers import const as CONST
 from .helpers import errors as ERROR
 
@@ -51,7 +51,8 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
         return await self._skybell.async_send_request(url)
 
     async def _async_snapshot_request(self) -> SnapshotData:
-        url = str.replace(CONST.DEVICE_SNAPSHOT_URL, "$DEVID$", self.device_id)
+        url = str.replace(CONST.DEVICE_SNAPSHOT_URL, "$DEVID$", 
+                          self.device_id)
         return await self._skybell.async_send_request(url)
 
     async def _async_settings_request(
@@ -59,15 +60,19 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
         json: dict[str, str | int] | None = None,
         **kwargs: Any,
     ) -> SettingsData:
-        url = str.replace(CONST.DEVICE_SETTINGS_URL, "$DEVID$", self.device_id)
-        return await self._skybell.async_send_request(url, json=json, **kwargs)
+        url = str.replace(CONST.DEVICE_SETTINGS_URL, "$DEVID$", 
+                          self.device_id)
+        return await self._skybell.async_send_request(url, 
+                                                      json=json, 
+                                                      **kwargs)
 
     async def _async_activities_request(self) -> list[ActivityData]:
         """ Activities returns a list of all activity on the device
         Note that the activities is limited to default limit 
         as pagination is not supported in the activities request
         """
-        url = str.replace(CONST.DEVICE_ACTIVITIES_URL, "$DEVID$", self.device_id)
+        url = str.replace(CONST.DEVICE_ACTIVITIES_URL, "$DEVID$", 
+                          self.device_id)
         response = await self._skybell.async_send_request(url)
         if response is None:
             return []
@@ -97,7 +102,6 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
                 self.images[CONST.SNAPSHOT] = b64decode(base64_string)
             self._snapshot_json = result
             UTILS.update(self._snapshot_json, snapshot_json or {})
-        
 
         if refresh:
             await self._async_update_activities()
@@ -110,18 +114,6 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
         # Update the selected events from the activity list.
         await self._async_update_events()
 
-        """
-        # Update the latest activity image.
-        if (url := self.latest().get(CONST.VIDEO_URL, "")):
-            if len(url) > 0:
-                url = CONST.BASE_API_URL + url
-                response = await self._skybell.async_send_request(url)
-                if response is None:
-                    url = ""
-                else:
-                    url = response.get(CONST.DOWNLOAD_URL, "")
-                    self.images[CONST.ACTIVITY] = url
-        """
         act = self.latest()
         image = act[CONST.IMAGE]
         if image is None:
@@ -141,13 +133,18 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
                     event_time >= old[CONST.EVENT_TIME]):
                 self._events[event_type] = activity
 
-    def activities(self, limit: int = 1, event: str | None = None) -> list[ActivityData]:
+    def activities(
+            self, 
+            limit: int = 1, 
+            event: str | None = None
+        ) -> list[ActivityData]:
         """Return device activity information."""
         activities = self._activities
 
         # Filter our activity array if requested
         if event:
-            activities = list(filter(lambda act: act[CONST.EVENT_TYPE] == event, activities))
+            activities = list(filter(
+                lambda act: act[CONST.EVENT_TYPE] == event, activities))
 
         # Return the requested number
         return activities[:limit]
@@ -185,7 +182,9 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
             ):
                 raise SkybellException(self, value)
 
-            rgb_value = "#{0:02x}{1:02x}{2:02x}".format(value[0], value[1], value[2])
+            rgb_value = "#{0:02x}{1:02x}{2:02x}".format(value[0], 
+                                                        value[1], 
+                                                        value[2])
             return await self._async_set_setting({key: rgb_value})
         elif key == CONST.NORMAL_LED:
             # Normal LED control of false has to reset the LED COLOR to Empty
@@ -194,7 +193,9 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
             key = CONST.LED_COLOR
             if value:
                 rgb = self.led_color
-                value = "#{0:02x}{1:02x}{2:02x}".format(rgb[0], rgb[1], rgb[2])
+                value = "#{0:02x}{1:02x}{2:02x}".format(rgb[0], 
+                                                        rgb[1], 
+                                                        rgb[2])
                 if not value:
                     value = CONST.DEFAULT_NORMAL_LED_COLOR
             else:
@@ -205,9 +206,19 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
         # UPdate the settings value for the key
         return await self._async_set_setting({key: value})
 
-    async def _async_set_setting(self, settings: dict[str, str | int]) -> None:
+    async def _async_set_setting(self, 
+                                 settings: dict[str, str | int]
+    ) -> None:
         """Validate the settings and then send the POST request."""
+
         for key, value in settings.items():
+            if (self.is_readonly and key not in CONST.ACL_EXCLUSIONS):
+                _LOGGER.warning(
+                    "Exception changing settings with read-only scope: %s", 
+                     settings)
+                raise SkybellAccessControlException(
+                    self, "Attempted setting with read-only scope."
+                )
             self._validate_setting(key, value)
 
         try:
@@ -227,7 +238,10 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
                 old_settings = self._device_json[CONST.SETTINGS]
                 UTILS.update(old_settings, result)
 
-    async def async_get_activity_video_url(self, video: str | None = None) -> str:
+    async def async_get_activity_video_url(
+        self, 
+        video: str | None = None
+        ) -> str:
         """Get url for the video to download.
         If an activity video url is not passed use the latest video url.
         """
@@ -250,15 +264,19 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
         delete: bool = False,
     ) -> None:
         """Download videos to specified path.
-        path (optional): path to save the videos.
-            if path is not passed, use the path to the cache.
-        video (optional): video url is passed use that url
-            if video url is not passed download the from the activities with limit
-        if delete is passed and true request to delete the activity after saving
+            path (optional): path to save the videos.
+                If path is not passed, use the path to the cache.
+            video (optional): video url is passed use that url
+                If video url is not passed download the videos from the 
+                activities as specified in the limit.
+            if requested, delete the activity after saving the video.
         """
         _path = self._skybell._cache_path[:-7]  # pylint:disable=protected-access
-        if video and (_id := [ev for ev in self._activities if video == ev[CONST.VIDEO_URL]]):
-            return await self._async_save_video(path or _path, _id[0], delete)
+        if video and (_id := [ev for ev in self._activities 
+                              if video == ev[CONST.VIDEO_URL]]):
+            return await self._async_save_video(path or _path, 
+                                                _id[0], 
+                                                delete)
         for event in self.activities(limit=limit):
             await self._async_save_video(path or _path, event, delete)
 
@@ -269,16 +287,28 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
         Place the file in path directory passed.
         If delete is true, delete the associated activity.
         """
-        async with aiofiles.open(f"{path}_{event[CONST.EVENT_TIME]}.mp4", "wb") as file:
-            url = await self.async_get_activity_video_url(event[CONST.VIDEO_URL])
+        async with aiofiles.open(
+                f"{path}_{event[CONST.EVENT_TIME]}.mp4", "wb") as file:
+            url = await self.async_get_activity_video_url(
+                event[CONST.VIDEO_URL])
             await file.write(await self._skybell.async_send_request(url))
         if delete:
             await self.async_delete_activity(event[CONST.ACTIVITY_ID])
 
     async def async_delete_activity(self, activity_id: str) -> None:
         """Delete activity with specified activity id."""
+        
+        if self.is_readonly:
+            _LOGGER.warning(
+                "Exception deleting activity with read-only scope.")
+            raise SkybellAccessControlException(
+                self, "Attempted setting with read-only scope."
+            )
+
         act_url = str.replace(CONST.ACTIVITY_URL, "$ACTID$", activity_id)
-        await self._skybell.async_send_request(act_url, method=CONST.HTTPMethod.DELETE)
+        await self._skybell.async_send_request(
+            act_url,
+             method=CONST.HTTPMethod.DELETE)
         
         # Clean out the local events
         for key, act in list(self._events.items()):
@@ -296,41 +326,67 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
         
         if (setting in CONST.MOTION_FIELDS and not self.motion_detection):
                 # Motion fields cannot be updated if motion detection is false
-                raise SkybellException(ERROR.INVALID_SETTING_VALUE, (setting, value))
+                raise SkybellException(ERROR.INVALID_SETTING_VALUE,
+                                       (setting, value))
         elif setting in CONST.BOOL_SETTINGS:
             if not isinstance(value, bool):
-                raise SkybellException(ERROR.INVALID_SETTING_VALUE, (setting, value))
+                raise SkybellException(ERROR.INVALID_SETTING_VALUE,
+                                       (setting, value))
         elif setting == CONST.BASIC_MOTION:
             for field, field_value in value.items():
                 if field not in CONST.BASIC_MOTION_FIELDS:
-                    raise SkybellException(ERROR.INVALID_SETTING_VALUE, (setting, value))
+                    raise SkybellException(ERROR.INVALID_SETTING_VALUE,
+                                           (setting, value))
                 elif not isinstance(field_value, bool):
-                    raise SkybellException(ERROR.INVALID_SETTING_VALUE, (setting, value))
+                    raise SkybellException(ERROR.INVALID_SETTING_VALUE,
+                                           (setting, value))
         elif setting == CONST.OUTDOOR_CHIME_VOLUME:
             if value not in CONST.OUTDOOR_CHIME_VALUES:
-                raise SkybellException(ERROR.INVALID_SETTING_VALUE, (setting, value))
+                raise SkybellException(ERROR.INVALID_SETTING_VALUE,
+                                       (setting, value))
         elif setting == CONST.SPEAKER_VOLUME:
             if value not in CONST.SPEAKER_VOLUME_VALUES:
-                raise SkybellException(ERROR.INVALID_SETTING_VALUE, (setting, value))
+                raise SkybellException(ERROR.INVALID_SETTING_VALUE,
+                                       (setting, value))
         elif setting == CONST.IMAGE_QUALITY:
             if value not in CONST.IMAGE_QUALITY_VALUES:
-                raise SkybellException(ERROR.INVALID_SETTING_VALUE, (setting, value))
+                raise SkybellException(ERROR.INVALID_SETTING_VALUE,
+                                       (setting, value))
         elif setting in CONST.GRANULAR_PCT_SETTINGS:
             if not isinstance(value, int):
-                raise SkybellException(ERROR.INVALID_SETTING_VALUE, (setting, value))
+                raise SkybellException(ERROR.INVALID_SETTING_VALUE,
+                                       (setting, value))
             if value > CONST.SENSITIVITY_MAX:
-                raise SkybellException(ERROR.INVALID_SETTING_VALUE, (setting, value))
+                raise SkybellException(ERROR.INVALID_SETTING_VALUE,
+                                       (setting, value))
         elif setting in CONST.DETAIL_SENSITIVITY_SETTINGS:
             if not isinstance(value, int):
-                raise SkybellException(ERROR.INVALID_SETTING_VALUE, (setting, value))
-            if (value > CONST.SENSITIVITY_MAX and value != CONST.USE_MOTION_SENSITIVITY):
-                raise SkybellException(ERROR.INVALID_SETTING_VALUE, (setting, value))
+                raise SkybellException(ERROR.INVALID_SETTING_VALUE,
+                                       (setting, value))
+            if (value > CONST.SENSITIVITY_MAX and value !=
+                CONST.USE_MOTION_SENSITIVITY):
+                raise SkybellException(ERROR.INVALID_SETTING_VALUE,
+                                       (setting, value))
   
     @property
     def skybell(self) -> Skybell:
         """Get owning Skybell API hub."""
         return self._skybell
-              
+
+    @property
+    def is_shared(self) -> bool:
+        """Return if the device is a shared device for the user."""
+        return self._device_json.get(CONST.SHARED, False)
+
+    @property
+    def is_readonly(self) -> bool:
+        """Return if the user has readonly access to the device."""
+        result = False
+        if self.is_shared:
+            result = self._device_json.get(CONST.SHARED_READ_ONLY, False)
+        return result
+
+    
     @property
     def user_id(self) -> str:
         """Get user id that owns the device."""
@@ -374,7 +430,8 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
         """Get a short description of the device."""
         # Front Door (id: ) - skybell hd - status: up - wifi status: good
         string = f"{self.name} (id: {self.device_id}) - {self.type}"
-        return f"{string} - status: {self.status} - wifi status: {self.wifi_link_quality}"
+        return f"{string} - status: {self.status} - " +\
+                "wifi status: {self.wifi_link_quality}"
 
     @property
     def status(self) -> str:
@@ -387,8 +444,10 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
     @property
     def is_up(self) -> bool:
         """Shortcut to get if the device status is up."""
-        ld = self._device_json.get(CONST.LAST_DISCONNECTED, datetime(1970, 1, 1))
-        lc = self._device_json.get(CONST.LAST_CONNECTED, datetime(1970, 1, 1))
+        ld = self._device_json.get(CONST.LAST_DISCONNECTED,
+                                   datetime(1970, 1, 1))
+        lc = self._device_json.get(CONST.LAST_CONNECTED,
+                                   datetime(1970, 1, 1))
         
         return lc > ld
 
@@ -437,23 +496,27 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
             act_time = act.get(CONST.EVENT_TIME, None)
             if act_time is not None:
                 try:
-                    act_time = datetime.fromtimestamp(act_time, tz=timezone.utc)
+                    act_time = datetime.fromtimestamp(act_time,
+                                                      tz=timezone.utc)
                 except:
-                    act_time = datetime.fromtimestamp(act_time/1000, tz=timezone.utc)
+                    act_time = datetime.fromtimestamp(act_time/1000,
+                                                      tz=timezone.utc)
         else:
             act_time = None
         return act_time
 
     @property
     def latest_motion_event_time(self) -> datetime:
-        """Get lastest notion event."""
+        """Get lastest motion event."""
         act = self.latest(event_type=CONST.MOTION_ACTIVITY)
         if act is not None:
             act_time = act[CONST.EVENT_TIME]
             try:
-                act_time = datetime.fromtimestamp(act_time, tz=timezone.utc)
+                act_time = datetime.fromtimestamp(act_time,
+                                                  tz=timezone.utc)
             except:
-                act_time = datetime.fromtimestamp(act_time/1000, tz=timezone.utc)
+                act_time = datetime.fromtimestamp(act_time/1000,
+                                                  tz=timezone.utc)
         else:
             act_time = None
         return act_time
@@ -512,13 +575,15 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
     def outdoor_chime_volume(self) -> int:
         """Get devices outdoor chime volume."""
         settings_json = self._device_json.get(CONST.SETTINGS,{})
-        return int(settings_json.get(CONST.OUTDOOR_CHIME_VOLUME, CONST.OUTDOOR_CHIME_LOW))
+        return int(settings_json.get(CONST.OUTDOOR_CHIME_VOLUME,
+                                     CONST.OUTDOOR_CHIME_LOW))
 
     @property
     def speaker_volume(self) -> int:
         """Get devices livestream volume."""
         settings_json = self._device_json.get(CONST.SETTINGS,{})
-        return int(settings_json.get(CONST.SPEAKER_VOLUME, CONST.SPEAKER_VOLUME_LOW))
+        return int(settings_json.get(CONST.SPEAKER_VOLUME,
+                                     CONST.SPEAKER_VOLUME_LOW))
     
     @property
     def led_control(self) -> str:
@@ -535,7 +600,8 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
         if not hex_string:
             return [0,0,0]
         else:
-            int_array = [int(hex_string[i:i+2], 16) for i in range(1, len(hex_string), 2)]
+            int_array = [int(hex_string[i:i+2], 16) 
+                         for i in range(1, len(hex_string), 2)]
             return int_array
     
     @property
@@ -551,7 +617,8 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
     def image_quality(self) -> int:
         """Get devices livestream resolution."""
         settings_json = self._device_json.get(CONST.SETTINGS,{})
-        return int(settings_json.get(CONST.IMAGE_QUALITY, CONST.IMAGE_QUALITY_LOW))
+        return int(settings_json.get(CONST.IMAGE_QUALITY,
+                                     CONST.IMAGE_QUALITY_LOW))
 
     @property
     def motion_detection(self) -> bool:
