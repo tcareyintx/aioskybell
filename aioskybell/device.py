@@ -47,6 +47,7 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
         self._events: ActivityType = {}
 
     async def _async_device_request(self) -> DeviceData:
+        # TODO - For all send requests verify None return
         url = str.replace(CONST.DEVICE_URL, "$DEVID$", self.device_id)
         return await self._skybell.async_send_request(url)
 
@@ -86,6 +87,7 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
         refresh: bool = True,
         get_devices: bool = False,
     ) -> None:
+        """ Update the internal data from the API"""
         # Update the internal device json data.
         if refresh or device_json or not self._device_json:
             if get_devices:

@@ -21,7 +21,8 @@ from aiohttp.client_exceptions import ClientConnectorError, ClientError
 
 from . import utils as UTILS
 from .device import SkybellDevice
-from .exceptions import SkybellAuthenticationException, SkybellException
+from .exceptions import SkybellAuthenticationException
+from .exceptions import SkybellException, SkybellUnknownResourceException
 from .helpers import const as CONST
 from .helpers import errors as ERROR
 
@@ -90,10 +91,23 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
             await self.async_login()
             
         # Obtain the user data -  which will login
-        self._user = await self.async_send_request(CONST.USER_URL)
+        self._user = None
+        try: 
+            self._user = await self.async_send_request(CONST.USER_URL)
+        except SkybellException as ex:
+            raise ex
+        except Exception:
+            _LOGGER.error("Unable to send user request: %s", self._username)
+            pass
+
         if (self._user is not None and self._get_devices):
             # Obtain the devices for the user
-            return await self.async_get_devices()
+            try:
+                return await self.async_get_devices()
+            except Exception:
+                _LOGGER.error("Unable to get devices for user: %s", 
+                          self._username)
+                return {}
         else:
             return {}
 
@@ -119,39 +133,44 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
             "password": self._password,
         }
 
-        response = await self.async_send_request(
-            url=CONST.LOGIN_URL,
-            json=login_data,
-            method=CONST.HTTPMethod.POST,
-            retry=False
+        response = None
+        try:
+            response = await self.async_send_request(
+                url=CONST.LOGIN_URL,
+                json=login_data,
+                method=CONST.HTTPMethod.POST,
+                retry=False
+            )
+        except SkybellAuthenticationException as ex:
+            raise ex
+        except SkybellException as ex:
+            raise ex
+        except Exception:
+            _LOGGER.error("Unable to send user login: %s", self._username)
+            return False
+
+
+        _LOGGER.debug("Login Response: %s", response)
+        # Store the Authorization result
+        auth_result = response[CONST.AUTHENTICATION_RESULT]
+        # Add an expiration date
+        expires_in = auth_result[CONST.TOKEN_EXPIRATION]
+        expiration = UTILS.calculate_expiration(
+                        expires_in=expires_in,
+                        slack=CONST.EXPIRATION_SLACK,
+                        refresh_cycle=CONST.REFRESH_CYCLE)
+        auth_result[CONST.EXPIRATION_DATE] = expiration
+        await self.async_update_cache(
+            {CONST.AUTHENTICATION_RESULT: auth_result}
         )
 
-        if response is None:
-            return False
-        elif CONST.AUTHENTICATION_RESULT not in response:
-            return False
+        if self._login_sleep:
+            _LOGGER.info("Login successful, waiting 5 seconds...")
+            await asyncio.sleep(5)
         else:
-            _LOGGER.debug("Login Response: %s", response)
-            # Store the Authorization result
-            auth_result = response[CONST.AUTHENTICATION_RESULT]
-            # Add an expiration date
-            expires_in = auth_result[CONST.TOKEN_EXPIRATION]
-            expiration = UTILS.calculate_expiration(
-                            expires_in=expires_in,
-                            slack=CONST.EXPIRATION_SLACK,
-                            refresh_cycle=CONST.REFRESH_CYCLE)
-            auth_result[CONST.EXPIRATION_DATE] = expiration
-            await self.async_update_cache(
-                {CONST.AUTHENTICATION_RESULT: auth_result}
-            )
+            _LOGGER.info("Login successful")
 
-            if self._login_sleep:
-                _LOGGER.info("Login successful, waiting 5 seconds...")
-                await asyncio.sleep(5)
-            else:
-                _LOGGER.info("Login successful")
-
-            return True
+        return True
 
     async def async_logout(self) -> bool:
         """Explicit Skybell logout."""
@@ -185,14 +204,15 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
             CONST.REFRESH_TOKEN_BODY: refresh_token,
         }
 
-        response = await self.async_send_request(
-            url=CONST.REFRESH_TOKEN_URL,
-            json=body_data, 
-            method=CONST.HTTPMethod.PUT, 
-            retry=False
-        )
-
-        if response is None:
+        response = None
+        try:
+            response = await self.async_send_request(
+                url=CONST.REFRESH_TOKEN_URL,
+                json=body_data, 
+                method=CONST.HTTPMethod.PUT, 
+                retry=False
+            )
+        except Exception:
             _LOGGER.debug("No Token Refresh Response returned.")
             return False
         
@@ -239,8 +259,11 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
     ) -> SkybellDevice:
         """Get a single device."""
         if len(self._devices) == 0:
-            await self.async_get_devices()
-            refresh = False
+            try:
+                await self.async_get_devices()
+                refresh = False
+            except Exception:
+                raise SkybellException(self, "Unable to retrieve devices")
 
         device = self._devices.get(device_id)
 
@@ -304,7 +327,8 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
             if response is False:
                 _LOGGER.exception(
                     "Failed login unable to send request: %s", url)
-                return None
+                raise SkybellAuthenticationException(
+                    f"Failed login unable to send request: {url}")
 
         headers = headers if headers else {}
         if (CONST.BASE_AUTH_DOMAIN in url or
@@ -338,7 +362,7 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
                 # 403/404 for expired request/device key no 
                 # longer present in S3
                 _LOGGER.exception(await response.text())
-                return None
+                raise SkybellUnknownResourceException(await response.text())
             response.raise_for_status()
         except ClientError as ex:
             if retry:
