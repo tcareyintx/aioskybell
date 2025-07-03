@@ -380,7 +380,7 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
             if os.path.exists(self._cache_path):
                 _LOGGER.debug("Cache found at: %s", self._cache_path)
                 if os.path.getsize(self._cache_path) > 0:
-                    loaded_cache =
+                    loaded_cache =\
                         await UTILS.async_load_cache(self._cache_path)
                     UTILS.update(self._cache, loaded_cache)
                 else:
