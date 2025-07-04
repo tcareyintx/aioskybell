@@ -7,6 +7,7 @@ Published under the MIT license - See LICENSE file for more details.
 "Skybell" is a trademark owned by SkyBell Technologies, Inc, see
 www.skybell.com for more information. I am in no way affiliated with Skybell.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -14,7 +15,7 @@ import logging
 import os
 from datetime import datetime
 from asyncio.exceptions import TimeoutError as Timeout
-from typing import Any, Collection, cast
+from typing import Any, Collection
 
 from aiohttp.client import ClientSession, ClientTimeout
 from aiohttp.client_exceptions import ClientConnectorError, ClientError
@@ -63,7 +64,7 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
         self._user: dict[str, str] = {}
 
         # Create a new cache template
-        self._cache: dict[str, str ] = {
+        self._cache: dict[str, str] = {
             CONST.AUTHENTICATION_RESULT: {},
         }
 
@@ -80,7 +81,7 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
         """Initialize."""
         if not self._disable_cache:
             await self._async_load_cache()
-        
+
         # Login option on initialization, otherwise wait until
         # A request is made
         if (
@@ -89,24 +90,22 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
             and self._auto_login
         ):
             await self.async_login()
-            
+
         # Obtain the user data -  which will login
         self._user = None
-        try: 
+        try:
             self._user = await self.async_send_request(CONST.USER_URL)
         except SkybellException as ex:
             raise ex
         except Exception:
             _LOGGER.error("Unable to send user request: %s", self._username)
-            pass
 
-        if (self._user is not None and self._get_devices):
+        if self._user is not None and self._get_devices:
             # Obtain the devices for the user
             try:
                 return await self.async_get_devices()
             except Exception:
-                _LOGGER.error("Unable to get devices for user: %s", 
-                          self._username)
+                _LOGGER.error("Unable to get devices for user: %s", self._username)
                 return {}
         else:
             return {}
@@ -139,7 +138,7 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
                 url=CONST.LOGIN_URL,
                 json=login_data,
                 method=CONST.HTTPMethod.POST,
-                retry=False
+                retry=False,
             )
         except SkybellAuthenticationException as ex:
             raise ex
@@ -149,20 +148,18 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
             _LOGGER.error("Unable to send user login: %s", self._username)
             return False
 
-
         _LOGGER.debug("Login Response: %s", response)
         # Store the Authorization result
         auth_result = response[CONST.AUTHENTICATION_RESULT]
         # Add an expiration date
         expires_in = auth_result[CONST.TOKEN_EXPIRATION]
         expiration = UTILS.calculate_expiration(
-                        expires_in=expires_in,
-                        slack=CONST.EXPIRATION_SLACK,
-                        refresh_cycle=CONST.REFRESH_CYCLE)
-        auth_result[CONST.EXPIRATION_DATE] = expiration
-        await self.async_update_cache(
-            {CONST.AUTHENTICATION_RESULT: auth_result}
+            expires_in=expires_in,
+            slack=CONST.EXPIRATION_SLACK,
+            refresh_cycle=CONST.REFRESH_CYCLE,
         )
+        auth_result[CONST.EXPIRATION_DATE] = expiration
+        await self.async_update_cache({CONST.AUTHENTICATION_RESULT: auth_result})
 
         if self._login_sleep:
             _LOGGER.info("Login successful, waiting 5 seconds...")
@@ -185,20 +182,18 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
         await self.async_update_cache({CONST.AUTHENTICATION_RESULT: {}})
 
         return True
-    
+
     async def async_refresh_session(self) -> bool:
         """Execute Skybell refresh."""
 
         auth_result = self.cache(CONST.AUTHENTICATION_RESULT)
         if auth_result:
-            refresh_token = auth_result.get(CONST.REFRESH_TOKEN,"")
+            refresh_token = auth_result.get(CONST.REFRESH_TOKEN, "")
         else:
             refresh_token = ""
 
-        if (not self._session or not refresh_token):
-            raise SkybellAuthenticationException(
-                self, f"No session established"
-            )
+        if not self._session or not refresh_token:
+            raise SkybellAuthenticationException(self, "No session established")
 
         body_data: dict[str, str | int] = {
             CONST.REFRESH_TOKEN_BODY: refresh_token,
@@ -208,33 +203,31 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
         try:
             response = await self.async_send_request(
                 url=CONST.REFRESH_TOKEN_URL,
-                json=body_data, 
-                method=CONST.HTTPMethod.PUT, 
-                retry=False
+                json=body_data,
+                method=CONST.HTTPMethod.PUT,
+                retry=False,
             )
         except Exception:
             _LOGGER.debug("No Token Refresh Response returned.")
             return False
-        
+
         _LOGGER.debug("Token Refresh Response: %s", response)
 
         # Add an expiration date
         expires_in = response[CONST.TOKEN_EXPIRATION]
         expiration = UTILS.calculate_expiration(
-                        expires_in=expires_in,
-                        slack=CONST.EXPIRATION_SLACK,
-                        refresh_cycle=CONST.REFRESH_CYCLE)
+            expires_in=expires_in,
+            slack=CONST.EXPIRATION_SLACK,
+            refresh_cycle=CONST.REFRESH_CYCLE,
+        )
         response[CONST.EXPIRATION_DATE] = expiration
         # Update the cache entities
         UTILS.update(auth_result, response)
-        await self.async_update_cache(
-            {CONST.AUTHENTICATION_RESULT: auth_result})
+        await self.async_update_cache({CONST.AUTHENTICATION_RESULT: auth_result})
         _LOGGER.debug("Refresh successful")
         return True
 
-    async def async_get_devices(self, 
-                                refresh: bool = False
-    ) -> list[SkybellDevice]:
+    async def async_get_devices(self, refresh: bool = False) -> list[SkybellDevice]:
         """Get all devices from Skybell."""
         if refresh or len(self._devices) == 0:
             _LOGGER.info("Updating all devices...")
@@ -247,7 +240,8 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
                 # No existing device, create a new one
                 if device:
                     await device.async_update(
-                        {device_json[CONST.DEVICE_ID]: device_json})
+                        {device_json[CONST.DEVICE_ID]: device_json}
+                    )
                 else:
                     device = SkybellDevice(device_json, self)
                     self._devices[device.device_id] = device
@@ -262,8 +256,8 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
             try:
                 await self.async_get_devices()
                 refresh = False
-            except Exception:
-                raise SkybellException(self, "Unable to retrieve devices")
+            except Exception as exc:
+                raise SkybellException(self, "Unable to retrieve devices") from exc
 
         device = self._devices.get(device_id)
 
@@ -288,7 +282,7 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
     def user_last_name(self) -> str | None:
         """Return logged in user last name."""
         return self._user.get(CONST.LAST_NAME, None)
-    
+
     @property
     def session_refresh_period(self) -> int:
         """Return period, in seconds, that the session will last
@@ -296,7 +290,7 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
         """
         auth_result = self.cache(CONST.AUTHENTICATION_RESULT)
         if auth_result:
-            period = auth_result.get(CONST.TOKEN_EXPIRATION,0)
+            period = auth_result.get(CONST.TOKEN_EXPIRATION, 0)
         else:
             period = 0
         return period
@@ -306,9 +300,10 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
         """Return expiration datetime that the session will last
         without a refresh of the login.
         """
+        expires = None
         auth_result = self.cache(CONST.AUTHENTICATION_RESULT)
         if auth_result:
-            expires = auth_result.get(CONST.EXPIRATION_DATE,None)
+            expires = auth_result.get(CONST.EXPIRATION_DATE, None)
 
         return expires
 
@@ -321,18 +316,16 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
         **kwargs: Any,
     ) -> Any:
         """Send requests to Skybell."""
-        if (len(self.cache(CONST.AUTHENTICATION_RESULT)) == 0 and 
-            url != CONST.LOGIN_URL):
+        if len(self.cache(CONST.AUTHENTICATION_RESULT)) == 0 and url != CONST.LOGIN_URL:
             response = await self.async_login()
             if response is False:
-                _LOGGER.exception(
-                    "Failed login unable to send request: %s", url)
+                _LOGGER.exception("Failed login unable to send request: %s", url)
                 raise SkybellAuthenticationException(
-                    f"Failed login unable to send request: {url}")
+                    f"Failed login unable to send request: {url}"
+                )
 
         headers = headers if headers else {}
-        if (CONST.BASE_AUTH_DOMAIN in url or
-            CONST.BASE_API_DOMAIN in url):
+        if CONST.BASE_AUTH_DOMAIN in url or CONST.BASE_API_DOMAIN in url:
             auth_result = self.cache(CONST.AUTHENTICATION_RESULT)
             token = auth_result.get(CONST.ID_TOKEN, "")
             token_type = auth_result.get(CONST.TOKEN_TYPE, "")
@@ -342,8 +335,7 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
             headers["accept"] = "*/*"
             headers["x-skybell-app"] = CONST.APP_VERSION
 
-        _LOGGER.debug(
-            "HTTP %s %s Request with headers: %s", method, url, headers)
+        _LOGGER.debug("HTTP %s %s Request with headers: %s", method, url, headers)
 
         try:
             response = await self._session.request(
@@ -353,13 +345,13 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
                 timeout=ClientTimeout(30),
                 **kwargs,
             )
-            if (response.status == 401 or
-                (response.status == 403 and CONST.LOGIN_URL == url)):
-                await self.async_update_cache(
-                    {CONST.AUTHENTICATION_RESULT: {}})
+            if response.status == 401 or (
+                response.status == 403 and CONST.LOGIN_URL == url
+            ):
+                await self.async_update_cache({CONST.AUTHENTICATION_RESULT: {}})
                 raise SkybellAuthenticationException(await response.text())
             elif response.status in (403, 404):
-                # 403/404 for expired request/device key no 
+                # 403/404 for expired request/device key no
                 # longer present in S3
                 _LOGGER.exception(await response.text())
                 raise SkybellUnknownResourceException(await response.text())
@@ -369,21 +361,17 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
                 await self.async_login()
 
                 return await self.async_send_request(
-                    url,
-                    headers=headers,
-                    method=method,
-                    retry=False,
-                    **kwargs
+                    url, headers=headers, method=method, retry=False, **kwargs
                 )
             raise SkybellException from ex
         if response.content_type == "application/json":
             local_response = await response.json()
         else:
             local_response = await response.read()
-        # Now we have a local response which could be 
+        # Now we have a local response which could be
         # a json dictionary or byte stream
         if isinstance(local_response, dict):
-            return local_response.get(CONST.RESPONSE_DATA,{})
+            return local_response.get(CONST.RESPONSE_DATA, {})
         else:
             return local_response
 
@@ -391,9 +379,7 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
         """Get a cached value."""
         return self._cache.get(key, "")
 
-    async def async_update_cache(
-        self, data: dict[str, str]
-    ) -> None:
+    async def async_update_cache(self, data: dict[str, str]) -> None:
         """Update a cached value."""
         UTILS.update(self._cache, data)
         await self._async_save_cache()
@@ -404,8 +390,7 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
             if os.path.exists(self._cache_path):
                 _LOGGER.debug("Cache found at: %s", self._cache_path)
                 if os.path.getsize(self._cache_path) > 0:
-                    loaded_cache =\
-                        await UTILS.async_load_cache(self._cache_path)
+                    loaded_cache = await UTILS.async_load_cache(self._cache_path)
                     UTILS.update(self._cache, loaded_cache)
                 else:
                     _LOGGER.debug("Cache file is empty.  Removing it.")
@@ -418,11 +403,13 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
         if not self._disable_cache:
             await UTILS.async_save_cache(self._cache, self._cache_path)
 
-    async def async_test_ports(
-        self, 
-        host: str, 
-        ports: list[int] | None = None
-    ) -> bool:
+    async def async_delete_cache(self) -> None:
+        """Remove the cache if required."""
+        if os.path.exists(self._cache_path):
+            _LOGGER.debug("Removing cache found at: %s", self._cache_path)
+            os.remove(self._cache_path)
+
+    async def async_test_ports(self, host: str, ports: list[int] | None = None) -> bool:
         """Test if ports are open. Only use this for discovery."""
         result = False
         for port in ports or [6881, 6969]:
