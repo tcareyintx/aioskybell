@@ -1,17 +1,19 @@
 """Models for Skybell."""
 from __future__ import annotations
 
+
 class TimezoneData(dict):
     """Class for Timezone settings
-       permitted for the device. 
+       permitted for the device.
        See /api/v5/devices/DEVICE_ID/settings"""
     place: str | None
     mapLat: float | None
     mapLong: float | None
 
+
 class BasicMotionData(dict):
     """Class for Basic Motion settings
-       permitted for the device. 
+       permitted for the device.
        See /api/v5/devices/DEVICE_ID/settings"""
     fd_notify: bool
     fd_record: bool
@@ -19,6 +21,7 @@ class BasicMotionData(dict):
     hbd_record: bool
     motion_notify: bool
     motion_record: bool
+
 
 class SettingsData(dict):
     """Class for update settings permitted for the device.
@@ -42,6 +45,7 @@ class SettingsData(dict):
     basic_motion: BasicMotionData | None
     time_zone_info: TimezoneData | None
 
+
 class DeviceSettingsData(dict):
     """Class for device_settings in a retrieved device.
        See /api/v5/devices/DEVICE_ID"""
@@ -52,7 +56,8 @@ class DeviceSettingsData(dict):
     firmware_patch: str
     firmware_version: str
     firmare_major_release: str
-    
+
+
 class TelemetryData(dict):
     """Class for telemetry in a retrieved device.
        See /api/v5/devices/DEVICE_ID"""
@@ -61,12 +66,14 @@ class TelemetryData(dict):
     signal_level: str
     last_seen: str
     ip_address: str
-    
+
+
 class SnapshotData(dict):
-    """Class for the device snapshot (avatar) 
+    """Class for the device snapshot (avatar)
        in a retrieved device. See /api/v5/devices/DEVICE_ID"""
     date_time: str
     preview: str
+
 
 class DeviceData(dict):
     """Class for device.
@@ -86,6 +93,7 @@ class DeviceData(dict):
     telemetry: TelemetryData
     settings: SettingsData
 
+
 class ActivityData(dict):
     """Class for an activity (event).
        See /api/v5/activities"""
@@ -104,8 +112,8 @@ class ActivityData(dict):
     created_at: str
     video_size: int
     video_ready_time: str
-    
-    
+
+
 ActivityType = dict[str, ActivityData]
 DeviceType = dict[str, dict[str, ActivityType]]
 DevicesDict = dict[str, DeviceType]

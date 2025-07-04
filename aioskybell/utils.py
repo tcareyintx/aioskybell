@@ -9,6 +9,7 @@ import aiofiles
 
 from .helpers.models import DeviceType
 
+
 async def async_save_cache(
     data: dict[str, str | dict[str, DeviceType]],
     filename: str,
@@ -28,19 +29,21 @@ async def async_load_cache(
 
     return pickle.loads(pickled_foo)
 
+
 def calculate_expiration(
     expires_in: int,
     slack: int,
     refresh_cycle: int
-)-> datetime:
+) -> datetime:
     """ Calculate the expirate datetime"""
     adj_expires_in = expires_in - slack
     if adj_expires_in <= refresh_cycle:
         adj_expires_in = expires_in
     expires = datetime.now() + timedelta(seconds=adj_expires_in)
-    
+
     return expires
-    
+
+
 def update(
     dct: dict[str, Any],
     dct_merge: dict[str, Any],
@@ -54,4 +57,3 @@ def update(
         else:
             dct[key] = value
     return dct
-
