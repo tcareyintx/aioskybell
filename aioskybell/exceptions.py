@@ -16,3 +16,7 @@ class SkybellAccessControlException(SkybellException):
 
 class SkybellUnknownResourceException(SkybellException):
     """Class to throw unknown resource exception."""
+
+
+class SkybellRequestException(SkybellException):
+    """Class to throw general Skybell request exception."""

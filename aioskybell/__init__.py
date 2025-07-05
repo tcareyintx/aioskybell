@@ -22,7 +22,7 @@ from aiohttp.client_exceptions import ClientConnectorError, ClientError
 
 from . import utils as UTILS
 from .device import SkybellDevice
-from .exceptions import SkybellAuthenticationException
+from .exceptions import SkybellAuthenticationException, SkybellRequestException
 from .exceptions import SkybellException, SkybellUnknownResourceException
 from .helpers import const as CONST
 from .helpers import errors as ERROR
@@ -365,6 +365,10 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
                 # longer present in S3
                 _LOGGER.exception(await response.text())
                 raise SkybellUnknownResourceException(await response.text())
+            elif response.status == 400:
+                # Bad request problem that cant be fixed by user or logging in
+                _LOGGER.exception(await response.text())
+                raise SkybellRequestException(await response.text())
             response.raise_for_status()
         except ClientError as ex:
             if retry:

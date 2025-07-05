@@ -169,22 +169,13 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
         # Set an attribute for the device.
         # The key isn't necessarily equal to the corresponding field
         # and may require transformation logic.
-        if key == CONST.LED_COLOR:
-            if not isinstance(value, (list, tuple)) or not all(
-                isinstance(item, int) for item in value
-            ):
-                raise SkybellException(self, value)
-
-            rgb_value = f"#{value[0]:02x}{value[1]:02x}{value[2]:02x}"
-            return await self._async_set_setting({key: rgb_value})
-        elif key == CONST.NORMAL_LED:
+        if key == CONST.NORMAL_LED:
             # Normal LED control of false has to reset the LED COLOR to Empty
             if not isinstance(value, bool):
                 raise SkybellException(self, value)
             key = CONST.LED_COLOR
             if value:
-                rgb = self.led_color
-                value = f"#{rgb[0]:02x}{rgb[1]:02x}{rgb[2]:02x}"
+                value = self.led_color
                 if not value:
                     value = CONST.DEFAULT_NORMAL_LED_COLOR
             else:
@@ -588,23 +579,14 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
         return settings_json.get(CONST.LED_CONTROL, "")
 
     @property
-    def led_color(self) -> [int, int, int]:
+    def led_color(self) -> str:
         """Get devices LED color as red, green blue integers."""
         settings_json = self._device_json.get(CONST.SETTINGS, {})
         hex_string = settings_json.get(CONST.LED_COLOR, "")
-
-        if not hex_string:
-            return [0, 0, 0]
-        else:
-            int_array = [
-                int(hex_string[i: i + 2], 16) for i in range(1,
-                                                             len(hex_string),
-                                                             2)
-            ]
-            return int_array
+        return hex_string
 
     @property
-    def normal_led(self) -> bool:
+    def normal_led_is_on(self) -> bool:
         "Get the devices normal led enablement property."
         hex_string = ""
         if self.led_control == CONST.NORMAL_LED_CONTROL:
