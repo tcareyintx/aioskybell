@@ -594,14 +594,14 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
         hex_string = settings_json.get(CONST.LED_COLOR, "")
 
         if not hex_string:
-            return [0, 0, 0]
-        else:
-            int_array = [
-                int(hex_string[i: i + 2], 16) for i in range(1,
-                                                             len(hex_string),
-                                                             2)
-            ]
-            return int_array
+            hex_string = CONST.DEFAULT_NORMAL_LED_COLOR_OFF
+
+        int_array = [
+            int(hex_string[i: i + 2], 16) for i in range(1,
+                                                         len(hex_string),
+                                                         2)
+        ]
+        return int_array
 
     @property
     def normal_led(self) -> bool:
