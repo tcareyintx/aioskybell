@@ -582,17 +582,17 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
     def led_color(self) -> str:
         """Get devices LED color as red, green blue integers."""
         settings_json = self._device_json.get(CONST.SETTINGS, {})
-        hex_string = settings_json.get(CONST.LED_COLOR, "")
-        return hex_string
+        hex_color = settings_json.get(CONST.LED_COLOR, "")
+        return hex_color
 
     @property
     def normal_led_is_on(self) -> bool:
         "Get the devices normal led enablement property."
-        hex_string = ""
+        hex_color = ""
         if self.led_control == CONST.NORMAL_LED_CONTROL:
             settings_json = self._device_json.get(CONST.SETTINGS, {})
-            hex_string = settings_json.get(CONST.LED_COLOR, "")
-        return len(hex_string) > 0
+            hex_color = settings_json.get(CONST.LED_COLOR, "")
+        return len(hex_color) > 0
 
     @property
     def image_quality(self) -> int:
