@@ -1,5 +1,5 @@
 {
-  "errors": {
-    "message": "Invalid Login - SmartAuth"
-  }
+	"error": true,
+	"message": "Denied.",
+	"data": false
 }

@@ -1,53 +1,323 @@
-[
-  {
-    "user": "0123456789abcdef01234567",
-    "uuid": "0123456789",
-    "resourceId": "012345670123456789abcdef",
-    "deviceInviteToken": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-    "location":{
-      "lat": "-1.0",
-      "lng": "1.0"
+{
+    "data": {
+        "count": 1,
+        "limit": 50,
+        "offset": 0,
+        "rows": [
+            {
+                "account_id": "123-123-123",
+                "basic_motion": {
+                    "fd_notify": true,
+                    "fd_record": true,
+                    "hbd_notify": true,
+                    "hbd_record": true,
+                    "motion_notify": true,
+                    "motion_record": true
+                },
+                "client_id": "123-456-789-123",
+                "created_at": "2025-06-02T20: 56: 31.320Z",
+                "device_id": "012345670123456789abcdef",
+                "device_settings": {
+                    "ESSID": "SSID",
+                    "MAC_address": "AA: BB: CC: DD: EE: FF",
+                    "OTA_signature": null,
+                    "OTA_type": null,
+                    "OTA_version": null,
+                    "firmware_major_release": 1,
+                    "firmware_minor_release": 7,
+                    "firmware_patch": 21,
+                    "firmware_version": "1.7.21",
+                    "hardware_version": "1",
+                    "model_rev": "SB_SLIM2_0001",
+                    "serial_number": "ASERIALNUM"
+                },
+                "doorlock_id": null,
+                "firmware": "1.7.21",
+                "hardware": "1: SB_SLIM2_0001",
+                "invite_token": "ALONGTOKEN",
+                "last_connected": "2025-06-26T18: 18: 50.281Z",
+                "last_disconnected": "2025-06-26T18: 18: 46.644Z",
+                "last_event": "1751758135229",
+                "lat": "32.7512049",
+                "location_id": null,
+                "lon": "-97.5961625",
+                "manufactured": null,
+                "name": "FrontDoor",
+                "rapidsos": null,
+                "serial": "ASERIALNUM",
+                "settings": {
+                    "account_id": "123-123-123",
+                    "audio_alarm_enabled": false,
+                    "audio_cmd_enabled": false,
+                    "aws_region": "",
+                    "basic_motion": {
+                        "fd_notify": true,
+                        "fd_record": true,
+                        "hbd_notify": true,
+                        "hbd_record": true,
+                        "motion_notify": true,
+                        "motion_record": true
+                    },
+                    "button_notifications": true,
+                    "button_pressed": true,
+                    "checkin_missed": {},
+                    "checkin_warning": {},
+                    "chime_file": "",
+                    "chime_file_motion": "",
+                    "chime_mode": false,
+                    "co_alarm": {},
+                    "debug_motion_detect": true,
+                    "device_id": "012345670123456789abcdef",
+                    "device_lat": 32.7512049,
+                    "device_lon": -97.5961625,
+                    "device_name": "FrontDoor",
+                    "digital_chime": false,
+                    "event_duration": 30,
+                    "fd_sensitivity": 573,
+                    "force_turn": false,
+                    "fr_sensitivity": 500,
+                    "hmbd_sensitivity": 500,
+                    "image_aspect": "Wide",
+                    "image_quality": 0,
+                    "indoor_chime": true,
+                    "led_color": "#00ff00",
+                    "led_control": "Normal",
+                    "modes": [],
+                    "motion_chime": false,
+                    "motion_chime_color": "#00FFFF",
+                    "motion_chime_volume": 2,
+                    "motion_detection": true,
+                    "motion_notifications": true,
+                    "motion_sensitivity": 534,
+                    "motion_zone_config": {
+                        "threshold": 1,
+                        "x": 8,
+                        "y": 5,
+                        "zones": [
+                            [
+                                {
+                                    "ignore": false,
+                                    "sensitivity": 90
+                                },
+                                {
+                                    "ignore": false,
+                                    "sensitivity": 90
+                                },
+                                {
+                                    "ignore": false,
+                                    "sensitivity": 90
+                                },
+                                {
+                                    "ignore": false,
+                                    "sensitivity": 90
+                                },
+                                {
+                                    "ignore": false,
+                                    "sensitivity": 90
+                                },
+                                {
+                                    "ignore": false,
+                                    "sensitivity": 90
+                                },
+                                {
+                                    "ignore": false,
+                                    "sensitivity": 90
+                                },
+                                {
+                                    "ignore": false,
+                                    "sensitivity": 90
+                                }
+                            ],
+                            [
+                                {
+                                    "ignore": false,
+                                    "sensitivity": 90
+                                },
+                                {
+                                    "ignore": false,
+                                    "sensitivity": 90
+                                },
+                                {
+                                    "ignore": false,
+                                    "sensitivity": 90
+                                },
+                                {
+                                    "ignore": false,
+                                    "sensitivity": 90
+                                },
+                                {
+                                    "ignore": false,
+                                    "sensitivity": 90
+                                },
+                                {
+                                    "ignore": false,
+                                    "sensitivity": 90
+                                },
+                                {
+                                    "ignore": false,
+                                    "sensitivity": 90
+                                },
+                                {
+                                    "ignore": false,
+                                    "sensitivity": 90
+                                }
+                            ],
+                            [
+                                {
+                                    "ignore": false,
+                                    "sensitivity": 90
+                                },
+                                {
+                                    "ignore": false,
+                                    "sensitivity": 90
+                                },
+                                {
+                                    "ignore": false,
+                                    "sensitivity": 90
+                                },
+                                {
+                                    "ignore": false,
+                                    "sensitivity": 90
+                                },
+                                {
+                                    "ignore": false,
+                                    "sensitivity": 90
+                                },
+                                {
+                                    "ignore": false,
+                                    "sensitivity": 90
+                                },
+                                {
+                                    "ignore": false,
+                                    "sensitivity": 90
+                                },
+                                {
+                                    "ignore": false,
+                                    "sensitivity": 90
+                                }
+                            ],
+                            [
+                                {
+                                    "ignore": false,
+                                    "sensitivity": 90
+                                },
+                                {
+                                    "ignore": false,
+                                    "sensitivity": 90
+                                },
+                                {
+                                    "ignore": false,
+                                    "sensitivity": 90
+                                },
+                                {
+                                    "ignore": false,
+                                    "sensitivity": 90
+                                },
+                                {
+                                    "ignore": false,
+                                    "sensitivity": 90
+                                },
+                                {
+                                    "ignore": false,
+                                    "sensitivity": 90
+                                },
+                                {
+                                    "ignore": false,
+                                    "sensitivity": 90
+                                },
+                                {
+                                    "ignore": false,
+                                    "sensitivity": 90
+                                }
+                            ],
+                            [
+                                {
+                                    "ignore": false,
+                                    "sensitivity": 90
+                                },
+                                {
+                                    "ignore": false,
+                                    "sensitivity": 90
+                                },
+                                {
+                                    "ignore": false,
+                                    "sensitivity": 90
+                                },
+                                {
+                                    "ignore": false,
+                                    "sensitivity": 90
+                                },
+                                {
+                                    "ignore": false,
+                                    "sensitivity": 90
+                                },
+                                {
+                                    "ignore": false,
+                                    "sensitivity": 90
+                                },
+                                {
+                                    "ignore": false,
+                                    "sensitivity": 90
+                                },
+                                {
+                                    "ignore": false,
+                                    "sensitivity": 90
+                                }
+                            ]
+                        ]
+                    },
+                    "outdoor_chime": true,
+                    "outdoor_chime_color": "#ffffff",
+                    "outdoor_chime_volume": 2,
+                    "pir_light_duration": 10,
+                    "pir_light_level": 100,
+                    "pir_light_trigger": true,
+                    "pir_sensitivity": 524,
+                    "selected_mode_id": 0,
+                    "simple_cv_mode": false,
+                    "smoke_alarm": {},
+                    "sos_alarm": {},
+                    "speaker_volume": 1,
+                    "stream_disable_motion": true,
+                    "telemetry_freq": 60,
+                    "time_zone": "CST6CDT,M3.2.0,M11.1.0",
+                    "time_zone_info": {
+                        "mapLat": 32.75127823046873,
+                        "mapLong": -97.59608332067728,
+                        "place": "UnitedStates,Aledo"
+                    },
+                    "tones": {
+                        "button": {
+                            "file": "1950s_mechanical_doorbell.wav",
+                            "last_updated": "2025-06-25T18: 28: 10.390999+00: 00"
+                        },
+                        "motion": {
+                            "file": "357_unholster.wav",
+                            "last_updated": "2025-06-25T16: 57: 48.118Z"
+                        },
+                        "test": null
+                    },
+                    "using_rules": false,
+                    "video_datetime": true,
+                    "video_rotation": 0
+                },
+                "telemetry": {
+                    "essid": "SSID",
+                    "ip_address": "192.168.250.3",
+                    "last_seen": "2025-07-05T23: 56: 26.605Z",
+                    "link_quality": "98/100",
+                    "signal_level": "-54"
+                },
+                "tones": {
+                    "button": null,
+                    "motion": null,
+                    "test": null
+                },
+                "updated_at": "2025-07-05T23: 28: 55.229Z",
+                "using_rules": false
+            }
+        ]
     },
-    "name": "Front Door",
-    "type": "skybell hd",
-    "status": "up",
-    "createdAt": "2020-10-20T14:35:00.745Z",
-    "updatedAt": "2020-10-20T14:35:00.745Z",
-    "id": "012345670123456789abcdef",
-    "acl": "owner"
-  },
-  {
-    "user": "0123456789abcdef01234568",
-    "uuid": "0123456790",
-    "resourceId": "012345670123456789abcdee",
-    "deviceInviteToken": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcde0",
-    "location":{
-      "lat": "-1.0",
-      "lng": "1.0"
-    },
-    "name": "Front Door",
-    "type": "skybell hd",
-    "status": "down",
-    "createdAt": "2020-10-20T14:35:00.745Z",
-    "updatedAt": "2020-10-20T14:35:00.745Z",
-    "id": "012345670123456789abcdee",
-    "acl": "device:read"
-  },
-  {
-    "user": "0123456789abcdef01234569",
-    "uuid": "0123456791",
-    "resourceId": "012345670123456789abcdd",
-    "deviceInviteToken": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcde1",
-    "location":{
-      "lat": "-1.0",
-      "lng": "1.0"
-    },
-    "name": "Front Door",
-    "type": "skybell hd",
-    "status": "up",
-    "createdAt": "2020-10-20T14:35:00.745Z",
-    "updatedAt": "2020-10-20T14:35:00.745Z",
-    "id": "012345670123456789abcded",
-    "acl": "device:basic"
-  }
-]
+    "error": false,
+    "message": "OK"
+}
