@@ -276,7 +276,9 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
             await self.async_delete_activity(event[CONST.ACTIVITY_ID])
 
     async def async_delete_activity(self, activity_id: str) -> None:
-        """Delete activity with specified activity id."""
+        """Delete activity with specified activity id.
+        Exceptions: SkybellAccessControlException
+        """
 
         if self.is_readonly:
             _LOGGER.warning(
@@ -300,7 +302,9 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
                 break
 
     def _validate_setting(self, setting: str, value: str | int | bool) -> None:
-        """Validate the public property setting and value."""
+        """Validate the public property setting and value.
+        Exceptions: SkybellException
+        """
 
         if setting in CONST.MOTION_FIELDS and not self.motion_detection:
             # Motion fields cannot be updated if motion detection is false
@@ -483,7 +487,7 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
                 try:
                     act_time = datetime.fromtimestamp(act_time,
                                                       tz=timezone.utc)
-                except Exception:
+                except (OSError, OverflowError):
                     act_time = datetime.fromtimestamp(act_time / 1000,
                                                       tz=timezone.utc)
         else:
@@ -495,13 +499,14 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
         """Get lastest motion event."""
         act = self.latest(event_type=CONST.MOTION_ACTIVITY)
         if act is not None:
-            act_time = act[CONST.EVENT_TIME]
-            try:
-                act_time = datetime.fromtimestamp(act_time,
-                                                  tz=timezone.utc)
-            except Exception:
-                act_time = datetime.fromtimestamp(act_time / 1000,
-                                                  tz=timezone.utc)
+            act_time = act.get(CONST.EVENT_TIME, None)
+            if act_time is not None:
+                try:
+                    act_time = datetime.fromtimestamp(act_time,
+                                                      tz=timezone.utc)
+                except (OSError, OverflowError):
+                    act_time = datetime.fromtimestamp(act_time / 1000,
+                                                      tz=timezone.utc)
         else:
             act_time = None
         return act_time

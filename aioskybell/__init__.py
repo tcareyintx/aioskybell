@@ -78,7 +78,9 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
             await self._session.close()
 
     async def async_initialize(self) -> list[SkybellDevice]:
-        """Initialize."""
+        """Initialize the Skybell API.
+        Exceptions: SkybellAuthentionException, SkybellException.
+        """
         if not self._disable_cache:
             await self._async_load_cache()
 
@@ -92,29 +94,19 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
             await self.async_login()
 
         # Obtain the user data -  which will login
-        self._user = None
-        try:
-            self._user = await self.async_send_request(CONST.USER_URL)
-        except SkybellException as ex:
-            raise ex
-        except Exception:
-            _LOGGER.error("Unable to send user request: %s", self._username)
-
+        self._user = await self.async_send_request(CONST.USER_URL)
         if self._user is not None and self._get_devices:
             # Obtain the devices for the user
-            try:
-                return await self.async_get_devices()
-            except Exception:
-                _LOGGER.error("Unable to get devices for user: %s",
-                              self._username)
-                return {}
+            return await self.async_get_devices()
         else:
             return {}
 
     async def async_login(
         self, username: str | None = None, password: str | None = None
     ) -> bool:
-        """Execute Skybell login."""
+        """Execute Skybell login.
+        Exceptions: SkybellAuthentionException, SkybellException.
+        """
         if username is not None:
             self._username = username
         if password is not None:
@@ -133,21 +125,12 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
             "password": self._password,
         }
 
-        response = None
-        try:
-            response = await self.async_send_request(
-                url=CONST.LOGIN_URL,
-                json=login_data,
-                method=CONST.HTTPMethod.POST,
-                retry=False,
-            )
-        except SkybellAuthenticationException as ex:
-            raise ex
-        except SkybellException as ex:
-            raise ex
-        except Exception:
-            _LOGGER.error("Unable to send user login: %s", self._username)
-            return False
+        response = await self.async_send_request(
+            url=CONST.LOGIN_URL,
+            json=login_data,
+            method=CONST.HTTPMethod.POST,
+            retry=False,
+        )
 
         _LOGGER.debug("Login Response: %s", response)
         # Store the Authorization result
@@ -186,7 +169,9 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
         return True
 
     async def async_refresh_session(self) -> bool:
-        """Execute Skybell refresh."""
+        """Execute Skybell refresh.
+                Exceptions: SkybellAuthentionException, SkybellException.
+        """
 
         auth_result = self.cache(CONST.AUTHENTICATION_RESULT)
         if auth_result:
@@ -202,17 +187,12 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
             CONST.REFRESH_TOKEN_BODY: refresh_token,
         }
 
-        response = None
-        try:
-            response = await self.async_send_request(
-                url=CONST.REFRESH_TOKEN_URL,
-                json=body_data,
-                method=CONST.HTTPMethod.PUT,
-                retry=False,
-            )
-        except Exception:
-            _LOGGER.debug("No Token Refresh Response returned.")
-            return False
+        response = await self.async_send_request(
+            url=CONST.REFRESH_TOKEN_URL,
+            json=body_data,
+            method=CONST.HTTPMethod.PUT,
+            retry=False,
+        )
 
         _LOGGER.debug("Token Refresh Response: %s", response)
 
@@ -233,7 +213,9 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
 
     async def async_get_devices(self, refresh: bool = False
                                 ) -> list[SkybellDevice]:
-        """Get all devices from Skybell."""
+        """Get all devices from Skybell.
+        Exceptions: kybellException.
+        """
         if refresh or len(self._devices) == 0:
             _LOGGER.info("Updating all devices...")
             response = await self.async_send_request(CONST.DEVICES_URL)
@@ -256,14 +238,12 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
     async def async_get_device(
         self, device_id: str, refresh: bool = False
     ) -> SkybellDevice:
-        """Get a single device."""
+        """Get a single device.
+        Exceptions: kybellException.
+        """
         if len(self._devices) == 0:
-            try:
-                await self.async_get_devices()
-                refresh = False
-            except Exception as exc:
-                raise SkybellException(
-                    self, "Unable to retrieve devices")from exc
+            await self.async_get_devices()
+            refresh = False
 
         device = self._devices.get(device_id)
 
@@ -321,7 +301,10 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
         retry: bool = True,
         **kwargs: Any,
     ) -> Any:
-        """Send requests to Skybell."""
+        """Send requests to Skybell.
+        Exceptions SkybellAuthenticationException, SkybellException,
+                   SkybellUnknownResourceExceptionm SkybellRequestException
+        """
         if (len(self.cache(CONST.AUTHENTICATION_RESULT)) == 0 and
                 url != CONST.LOGIN_URL):
             response = await self.async_login()
@@ -372,16 +355,29 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
             response.raise_for_status()
         except ClientError as ex:
             if retry:
-                await self.async_login()
-
-                return await self.async_send_request(
-                    url, headers=headers, method=method, retry=False, **kwargs
-                )
+                try:
+                    await self.async_login()
+                    return await self.async_send_request(
+                        url,
+                        headers=headers,
+                        method=method,
+                        retry=False,
+                        **kwargs
+                    )
+                except ClientError as ex:
+                    raise SkybellException from ex
             raise SkybellException from ex
-        if response.content_type == "application/json":
-            local_response = await response.json()
-        else:
-            local_response = await response.read()
+        try:
+            if response.content_type == "application/json":
+                local_response = await response.json()
+            else:
+                local_response = await response.read()
+        except TypeError as ex:
+            raise SkybellRequestException from ex
+        except ValueError as ex:
+            raise SkybellRequestException from ex
+        except ClientError as ex:
+            raise SkybellRequestException from ex
         # Now we have a local response which could be
         # a json dictionary or byte stream
         if isinstance(local_response, dict):
