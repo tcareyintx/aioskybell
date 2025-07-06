@@ -7,6 +7,7 @@ Tests the device initialization and attributes of the Skybell device class.
 import asyncio
 import datetime as dt
 import os
+from datetime import datetime
 from asyncio.exceptions import TimeoutError as Timeout
 from unittest.mock import patch
 
@@ -33,6 +34,20 @@ def login_response(aresponses: ResponsesMockServer) -> None:
             status=200,
             headers={"Content-Type": "application/json"},
             text=load_fixture("login.json"),
+        ),
+    )
+
+
+def refresh_response(aresponses: ResponsesMockServer) -> None:
+    """Generate refresh session response."""
+    aresponses.add(
+        "api.skybell.network",
+        "/api/v5/token/",
+        "PUT",
+        aresponses.Response(
+            status=200,
+            headers={"Content-Type": "application/json"},
+            text=load_fixture("refresh_session.json"),
         ),
     )
 
@@ -79,6 +94,52 @@ def devices_response(aresponses: ResponsesMockServer) -> None:
     )
 
 
+def device_response(aresponses: ResponsesMockServer, device: str) -> None:
+    """Generate devices response."""
+    path = f"/api/v5/devices/{device}/"
+    aresponses.add(
+        "api.skybell.network",
+        path,
+        "GET",
+        aresponses.Response(
+            status=200,
+            headers={"Content-Type": "application/json"},
+            text=load_fixture("device.json"),
+        ),
+    )
+
+
+def snapshot_response(aresponses: ResponsesMockServer, device: str) -> None:
+    """Generate snapshot response."""
+    path = f"/api/v5/devices/{device}/snapshot/"
+    aresponses.add(
+        "api.skybell.network",
+        path,
+        "GET",
+        aresponses.Response(
+            status=200,
+            headers={"Content-Type": "application/json"},
+            text=load_fixture("device_snapshot.json"),
+        ),
+    )
+
+
+def activities_response(aresponses: ResponsesMockServer, device: str) -> None:
+    """Generate snapshot response."""
+    path = f"/api/v5/activity?device_id={device}&nopreviews=0"
+    aresponses.add(
+        "api.skybell.network",
+        path,
+        "GET",
+        aresponses.Response(
+            status=200,
+            headers={"Content-Type": "application/json"},
+            text=load_fixture("device_activities.json"),
+        ),
+        match_querystring=True,
+    )
+
+
 @pytest.mark.asyncio
 async def test_loop() -> None:
     """Test loop usage is handled correctly."""
@@ -89,7 +150,9 @@ async def test_loop() -> None:
 
 
 @pytest.mark.asyncio
-async def test_async_initialize_and_logout(aresponses: ResponsesMockServer) -> None:
+async def test_async_initialize_and_logout(
+    aresponses: ResponsesMockServer
+) -> None:
     """Test initializing and logout."""
     client = Skybell(
         EMAIL, PASSWORD, auto_login=True, get_devices=True, login_sleep=False
@@ -97,6 +160,7 @@ async def test_async_initialize_and_logout(aresponses: ResponsesMockServer) -> N
     login_response(aresponses)
     user_response(aresponses)
     devices_response(aresponses)
+    refresh_response(aresponses)
     data = await client.async_initialize()
     assert client.user_id == "1234567890abcdef12345678"
     assert client.user_first_name == "First"
@@ -110,13 +174,212 @@ async def test_async_initialize_and_logout(aresponses: ResponsesMockServer) -> N
     assert isinstance(data[0], SkybellDevice)
     device = client._devices["012345670123456789abcdef"]
     assert isinstance(device, SkybellDevice)
+    assert isinstance(device.skybell, Skybell)
 
+    # Test the session refresh
+    await client.async_refresh_session()
+    ar = client._cache["AuthenticationResult"]
+    assert ar["AccessToken"] == "LongToken"
+    assert ar["ExpiresIn"] == 3600
+    assert client.session_refresh_period == 3600
+    assert ar["TokenType"] == "Bearer"
+    assert isinstance(ar["ExpirationDate"], datetime)
+    assert isinstance(client.session_refresh_timestamp, datetime)
+
+    # Test the session logout
     assert await client.async_logout() is True
     assert not client._devices
 
-    assert await client.async_login() is False
+    with pytest.raises(RuntimeError):
+        await client.async_login()
 
     loop = asyncio.get_running_loop()
     loop.run_in_executor(None, os.remove(client._cache_path))
 
     assert not aresponses.assert_no_unused_routes()
+
+
+@pytest.mark.asyncio
+async def test_get_devices(
+    aresponses: ResponsesMockServer,
+    client: Skybell,
+    freezer: FrozenDateTimeFactory
+) -> None:
+    """Test getting devices."""
+    freezer.move_to("2023-03-30 13:33:00+00:00")
+    login_response(aresponses)
+    devices_response(aresponses)
+
+    # Test the Get Device and device specific attributes
+    data = await client.async_get_device("012345670123456789abcdef",
+                                         refresh=True)
+    assert isinstance(data, SkybellDevice)
+    device = client._devices["012345670123456789abcdef"]
+    assert isinstance(device, SkybellDevice)
+    # Test public API and device data structure
+    assert device._device_json["basic_motion"] == {
+                    "fd_notify": True,
+                    "fd_record": True,
+                    "hbd_notify": True,
+                    "hbd_record": True,
+                    "motion_notify": True,
+                    "motion_record": True
+                }
+    assert device.basic_motion == {
+                    "fd_notify": True,
+                    "fd_record": True,
+                    "hbd_notify": True,
+                    "hbd_record": True,
+                    "motion_notify": True,
+                    "motion_record": True
+                }
+    assert device._device_json["created_at"] == "2020-10-20T14:35:00.745Z"
+    assert (
+        device._device_json["invite_token"]
+        == "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    )
+    assert device._device_json["device_id"] == "012345670123456789abcdef"
+    assert device.device_id == "012345670123456789abcdef"
+    assert device._device_json["name"] == "FrontDoor"
+    assert device.name == "FrontDoor"
+    assert device._device_json["last_connected"] == "2020-10-21T14:35:00.745Z"
+    assert device.last_connected.strftime("%Y-%m-%d") == "2020-10-21"
+    assert (device._device_json["last_disconnected"] ==
+            "2020-10-20T14:35:00.745Z")
+    assert device.last_disconnected.strftime("%Y-%m-%d") == "2020-10-20"
+    assert device._device_json["updated_at"] == "2021-10-20T14:35:00.745Z"
+    assert device._device_json["account_id"] == "123-123-123"
+    assert device.user_id == "123-123-123"
+    assert device.is_shared is False
+    assert device.is_readonly is False
+    assert device.status == "Up"
+    assert device.is_up is True
+    assert device.desc == "FrontDoor (id: 012345670123456789abcdef) " +\
+        "- SB_SLIM2_0001 - status: Up - WiFi link quality: 98/100"
+
+    # Test public API and device settings structure
+    device_settings = device._device_json["device_settings"]
+    assert device_settings["model_rev"] == "SB_SLIM2_0001"
+    assert device.type == "SB_SLIM2_0001"
+    assert device_settings["MAC_address"] == "AA:BB:CC:DD:EE:FF"
+    assert device.mac == "AA:BB:CC:DD:EE:FF"
+    assert device_settings["serial_number"] == "ASERIALNUM"
+    assert device.serial_no == "ASERIALNUM"
+    assert device_settings["serial_number"] == "ASERIALNUM"
+    assert device.serial_no == "ASERIALNUM"
+    assert device_settings["firmware_version"] == "1.7.21"
+    assert device.firmware_ver == "1.7.21"
+    assert device_settings["ESSID"] == "SSID"
+
+    # Test public API and device telemetry structure
+    telemetry = device._device_json["telemetry"]
+    assert telemetry["last_seen"] == "2022-10-20T14:35:00.745Z"
+    assert device.last_seen.strftime("%Y-%m-%d") == "2022-10-20"
+    assert telemetry["link_quality"] == "98/100"
+    assert device.wifi_link_quality == "98/100"
+    assert telemetry["signal_level"] == "-54"
+    assert device.wifi_signal_level == "-54"
+    assert telemetry["essid"] == "SSID"
+    assert device.wifi_ssid == "SSID"
+
+    # Test punlic API and settings structure
+    settings = device._device_json["settings"]
+    assert settings["time_zone_info"] == {
+                            "mapLat": 1.0,
+                            "mapLong": -1.0,
+                            "place": "Anywhere"
+                        }
+    assert device.location == ("1.0", "-1.0")
+    assert settings["device_name"] == "FrontDoor"
+    assert settings["button_pressed"] is True
+    assert device.button_pressed is True
+    assert settings["led_control"] == "Normal"
+    assert device.led_control == "Normal"
+    assert settings["led_color"] == "#00ff00"
+    assert device.led_color == "#00ff00"
+    assert settings["indoor_chime"] is True
+    assert device.indoor_chime is True
+    assert settings["digital_chime"] is False
+    assert device.digital_chime is False
+    assert settings["outdoor_chime"] is True
+    assert device.outdoor_chime is True
+    assert settings["outdoor_chime_volume"] == 2
+    assert device.outdoor_chime_volume == 2
+    assert settings["speaker_volume"] == 1
+    assert device.speaker_volume == 1
+    assert settings["motion_detection"] is True
+    assert device.motion_detection is True
+    assert settings["debug_motion_detect"] is True
+    assert device.debug_motion_detect is True
+    assert settings["motion_sensitivity"] == 534
+    assert device.motion_sensitivity == 534
+    assert settings["hmbd_sensitivity"] == 500
+    assert device.hmbd_sensitivity == 500
+    assert settings["fd_sensitivity"] == 573
+    assert device.fd_sensitivity == 573
+    assert settings["pir_sensitivity"] == 524
+    assert device.pir_sensitivity == 524
+    assert settings["image_quality"] == 0
+    assert device.image_quality == 0
+
+    assert aresponses.assert_no_unused_routes() is None
+
+
+@pytest.mark.asyncio
+async def test_async_refresh_device(
+    aresponses: ResponsesMockServer,
+    client: Skybell,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """Test refreshing device."""
+    freezer.move_to("2023-03-30 13:33:00+00:00")
+    login_response(aresponses)
+    devices_response(aresponses)
+    data = await client.async_get_devices()
+    device = data[0]
+
+    # Test the update for the devices
+    device_response(aresponses, device.device_id)
+    snapshot_response(aresponses, device.device_id)
+    activities_response(aresponses, device.device_id)
+    await device.async_update(get_devices=True)
+    assert device._device_json["device_id"] == "012345670123456789abcdef"
+    assert device.device_id == "012345670123456789abcdef"
+    assert device._device_json["name"] == "FrontDoor"
+    assert device.name == "FrontDoor"
+
+    # Test the activities for the device
+    data = device.activities()[0]
+
+    assert data["activity_id"] == "bdc15f68-4c7b-41e2-8c54-adfb800898a9"
+    assert data["event_type"] == "doorbell"
+    assert data["event_time"] == 1751732391135
+    assert data["device_id"] == "012345670123456789abcdef"
+    assert data["image"] is None
+    assert data["video_url"] ==\
+        "/activity/bdc15f68-4c7b-41e2-8c54-adfb800898a9/video"
+    assert data["video_ready"] is True
+    assert data["video_url"] ==\
+        "/activity/bdc15f68-4c7b-41e2-8c54-adfb800898a9/video"
+
+    assert isinstance(device.activities(event="motion"), list)
+    assert isinstance(device.latest(event_type="motion"), dict)
+    assert device.latest(event_type="motion")[CONST.CREATED_AT] ==\
+        "2019-07-05T14:30:17.659Z"
+    assert device.latest(event_type="doorbell")[CONST.CREATED_AT] ==\
+        "2019-07-05T16:19:51.157Z"
+
+    # Test a basic update that does not get the device
+    snapshot_response(aresponses, device.device_id)
+    activities_response(aresponses, device.device_id)
+    await device.async_update()
+    assert device._device_json["device_id"] == "012345670123456789abcdef"
+    assert device.device_id == "012345670123456789abcdef"
+    assert device._device_json["name"] == "FrontDoor"
+    assert device.name == "FrontDoor"
+
+    # Clear the cache file
+    loop = asyncio.get_running_loop()
+    loop.run_in_executor(None, os.remove(client._cache_path))
+
+    assert aresponses.assert_no_unused_routes() is None
