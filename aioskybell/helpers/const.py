@@ -72,49 +72,25 @@ SHARED_READ_ONLY = "shared_read_only"
 DEVICE_ID = "device_id"
 NAME = "name"
 ACCOUNT_ID = "account_id"
-CLIENT_ID = "client_id"
 LAST_CONNECTED = "last_connected"
 LAST_DISCONNECTED = "last_disconnected"
-LAST_EVENT = "last_event"
 CREATED_AT = "created_at"
 UPDATED_AT = "updated_at"
-INVITE_TOKEN = "invite_token"
-CERTIFICATE_ID = "certificate_id"
 
 # DEVICE INFO
 DEVICE_SETTINGS = "device_settings"
 MAC_ADDRESS = "MAC_address"
 MODEL_REV = "model_rev"
 SERIAL_NUM = "serial_number"
-HARDWARE_VERSION = "hardware_version"
 FIRMWARE_VERSION = "firmware_version"
 WIFI_ESSID = "ESSID"
 
 # DEVICE TELEMETRY
 DEVICE_TELEMETRY = "telemetry"
 DEVICE_LAST_SEEN = "last_seen"
-DEVICE_IP_ADDRESS = "ip_address"
-
 WIFI_LINK_QUALITY = "link_quality"
 WIFI_SIGNAL_LEVEL = "signal_level"
 WIFI_SSID = "essid"
-
-# DEVICE ACTIVITIES
-ACTIVITY = "activity"
-ACTIVITY_ID = "activity_id"
-EVENT_TYPE = "event_type"
-EVENT_TIME = "event_time"
-IMAGE = "image"
-VIDEO_URL = "video_url"
-VIDEO_READY = "video_ready"
-DOWNLOAD_URL = "download_url"
-DOORBELL_ACTIVITY = "doorbell"
-MOTION_ACTIVITY = "motion"
-
-# DEVUCE IMAGE SNAPSHOT
-SNAPSHOT = "avatar"
-PREVIEW_CREATED_AT = "date_time"
-PREVIEW_IMAGE = "preview"
 
 # DEVICE SETTINGS
 SETTINGS = "settings"
@@ -128,7 +104,6 @@ LED_COLOR = "led_color"
 # AUDIO SETTUBGS
 INDOOR_CHIME = "indoor_chime"
 INDOOR_DIGITAL_CHIME = "digital_chime"
-CHIME_FILE = "chime_file"
 OUTDOOR_CHIME = "outdoor_chime"
 OUTDOOR_CHIME_VOLUME = "outdoor_chime_volume"
 SPEAKER_VOLUME = "speaker_volume"
@@ -158,6 +133,23 @@ TIMEZONE_INFO = "time_zone_info"
 LOCATION_LAT = "mapLat"
 LOCATION_LON = "mapLong"
 LOCATION_PLACE = "place"
+
+# DEVICE ACTIVITIES
+ACTIVITY = "activity"
+ACTIVITY_ID = "activity_id"
+EVENT_TYPE = "event_type"
+EVENT_TIME = "event_time"
+IMAGE = "image"
+VIDEO_URL = "video_url"
+VIDEO_READY = "video_ready"
+DOWNLOAD_URL = "download_url"
+DOORBELL_ACTIVITY = "doorbell"
+MOTION_ACTIVITY = "motion"
+
+# DEVUCE IMAGE SNAPSHOT
+SNAPSHOT = "avatar"
+PREVIEW_CREATED_AT = "date_time"
+PREVIEW_IMAGE = "preview"
 
 # SETTINGS VALUES
 GRANULAR_PCT_SETTINGS = [

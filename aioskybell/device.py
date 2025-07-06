@@ -411,11 +411,11 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
     @property
     def desc(self) -> str:
         """Get a short description of the device."""
-        # Front Door (id: ) - skybell hd - status: up - wifi status: good
+        # Front Door (id: ) - skybell hd - status: up - wifi status: x/100
         string = f"{self.name} (id: {self.device_id}) - {self.type}"
         return (
             f"{string} - status: {self.status} - "
-            + "wifi status: {self.wifi_link_quality}"
+            + f"WiFi link quality: {self.wifi_link_quality}"
         )
 
     @property
@@ -513,9 +513,15 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
 
     @property
     def wifi_link_quality(self) -> str:
-        """Get the wifi status."""
+        """Get the wifi link quality."""
         telemetry = self._device_json.get(CONST.DEVICE_TELEMETRY, {})
         return telemetry.get(CONST.WIFI_LINK_QUALITY, "")
+
+    @property
+    def wifi_signal_level(self) -> str:
+        """Get the wifi signal level."""
+        telemetry = self._device_json.get(CONST.DEVICE_TELEMETRY, {})
+        return telemetry.get(CONST.WIFI_SIGNAL_LEVEL, "")
 
     @property
     def wifi_ssid(self) -> str:
@@ -523,8 +529,8 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
         telemetry = self._device_json.get(CONST.DEVICE_TELEMETRY, {})
         ssid = telemetry.get(CONST.WIFI_SSID, "")
         if not ssid:
-            settings_json = self._device_json.get(CONST.SETTINGS, {})
-            ssid = settings_json.get(CONST.WIFI_ESSID, "")
+            device_settings = self._device_json.get(CONST.DEVICE_SETTINGS, {})
+            ssid = device_settings.get(CONST.WIFI_ESSID, "")
         return ssid
 
     @property

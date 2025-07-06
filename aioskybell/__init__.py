@@ -239,7 +239,7 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
         self, device_id: str, refresh: bool = False
     ) -> SkybellDevice:
         """Get a single device.
-        Exceptions: kybellException.
+        Exceptions: SkybellException.
         """
         if len(self._devices) == 0:
             await self.async_get_devices()
