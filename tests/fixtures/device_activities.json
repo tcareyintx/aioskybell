@@ -26,7 +26,7 @@
                 "video_ready": true,
                 "video_ready_time": "2019-07-05T16:20:37.545Z",
                 "video_size": 3695950,
-                "video_url": "/activity/bdc15f68-4c7b-41e2-8c54-adfb800898a9/video"
+                "video_url": "/activity/act-doorbell/video"
             },
             {
                 "account_id": "123-123-123",
@@ -48,7 +48,7 @@
                 "video_ready": true,
                 "video_ready_time": "2019-07-05T14:31:26.535Z",
                 "video_size": 2882178,
-                "video_url": "/activity/67792389-5d86-4554-82ce-6bf6a595d70b/video"
+                "video_url": "/activity/act-motion/video"
             }
         ],
         "start": 1751222625228

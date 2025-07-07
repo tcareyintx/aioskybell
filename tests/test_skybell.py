@@ -156,6 +156,42 @@ def device_settings_response(
     )
 
 
+def download_video_url_response(
+        aresponses: ResponsesMockServer,
+        video_id: str
+) -> None:
+    """Generate device settings response."""
+    path = f"/api/v5{video_id}"
+    aresponses.add(
+        "api.skybell.network",
+        path,
+        "GET",
+        aresponses.Response(
+            status=200,
+            headers={"Content-Type": "application/json"},
+            text=load_fixture("video_url.json"),
+        ),
+    )
+
+
+def delete_activity_response(
+        aresponses: ResponsesMockServer,
+        activity: str
+) -> None:
+    """Generate device settings response."""
+    path = f"/api/v5/activity/{activity}"
+    aresponses.add(
+        "api.skybell.network",
+        path,
+        "DELETE",
+        aresponses.Response(
+            status=200,
+            headers={"Content-Type": "application/json"},
+            text=load_fixture("video_url.json"),
+        ),
+    )
+
+
 @pytest.mark.asyncio
 async def test_loop() -> None:
     """Test loop usage is handled correctly."""
@@ -216,7 +252,7 @@ async def test_async_initialize_and_logout(
 
 
 @pytest.mark.asyncio
-async def test_get_devices(
+async def test_async_get_devices(
     aresponses: ResponsesMockServer,
     client: Skybell,
     freezer: FrozenDateTimeFactory
@@ -372,11 +408,9 @@ async def test_async_refresh_device(
     assert data["event_time"] == 1751732391135
     assert data["device_id"] == "012345670123456789abcdef"
     assert data["image"] is None
-    assert data["video_url"] ==\
-        "/activity/bdc15f68-4c7b-41e2-8c54-adfb800898a9/video"
     assert data["video_ready"] is True
     assert data["video_url"] ==\
-        "/activity/bdc15f68-4c7b-41e2-8c54-adfb800898a9/video"
+        "/activity/act-doorbell/video"
 
     assert isinstance(device.activities(event="motion"), list)
     assert isinstance(device.latest(event_type="motion"), dict)
@@ -562,6 +596,72 @@ async def test_async_change_setting(
     loop.run_in_executor(None, os.remove(client._cache_path))
 
     assert aresponses.assert_no_unused_routes() is None
+
+
+@pytest.mark.asyncio
+async def test_async_get_activity_video_url(
+    aresponses: ResponsesMockServer,
+    client: Skybell
+) -> None:
+    """Test getting the video url for an activity"""
+
+    # Get the device with its activity
+    login_response(aresponses)
+    devices_response(aresponses)
+    data = await client.async_get_devices()
+    device = data[0]
+
+    # Test the update for the devices
+    device_response(aresponses, device.device_id)
+    snapshot_response(aresponses, device.device_id)
+    activities_response(aresponses, device.device_id)
+    await device.async_update(get_devices=True)
+
+    # Get video url associated with an activity
+    act = device.latest()
+    video_id = act[CONST.VIDEO_URL]
+    download_video_url_response(aresponses, video_id=video_id)
+    download_url = await device.async_get_activity_video_url(video=video_id)
+    assert download_url ==\
+        "https://skybell-gen5-video.s3.us-east-2.amazonaws.com/video-id"
+
+    loop = asyncio.get_running_loop()
+    loop.run_in_executor(None, os.remove(client._cache_path))
+
+    assert not aresponses.assert_no_unused_routes()
+
+
+@pytest.mark.asyncio
+async def test_async_delete_activity(
+    aresponses: ResponsesMockServer,
+    client: Skybell
+) -> None:
+    """Test deleting an activity"""
+
+    # Get the device with its activity
+    login_response(aresponses)
+    devices_response(aresponses)
+    data = await client.async_get_devices()
+    device = data[0]
+
+    # Test the update for the devices
+    device_response(aresponses, device.device_id)
+    snapshot_response(aresponses, device.device_id)
+    activities_response(aresponses, device.device_id)
+    await device.async_update(get_devices=True)
+
+    # Get activiry id associated with an activity
+    act = device.latest()
+    activity_id = act[CONST.ACTIVITY_ID]
+    delete_activity_response(aresponses, activity_id)
+    await device.async_delete_activity(activity_id=activity_id)
+    assert len(device._activities) == 1
+    assert len(device._events) == 1
+
+    loop = asyncio.get_running_loop()
+    loop.run_in_executor(None, os.remove(client._cache_path))
+
+    assert not aresponses.assert_no_unused_routes()
 
 
 @pytest.mark.asyncio

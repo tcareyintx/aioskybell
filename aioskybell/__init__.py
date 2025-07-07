@@ -242,7 +242,7 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
         Exceptions: SkybellException.
         """
         if len(self._devices) == 0:
-            await self.async_get_devices()
+            await self.async_get_devices(refresh=refresh)
             refresh = False
 
         device = self._devices.get(device_id)
@@ -250,7 +250,7 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
         if not device:
             raise SkybellException(self, "Device not found")
         if refresh:
-            await device.async_update()
+            await device.async_update(refresh=refresh)
 
         return device
 
