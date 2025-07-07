@@ -268,7 +268,9 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
                                  "wb") as file:
             url = await self.async_get_activity_video_url(
                 event[CONST.VIDEO_URL])
-            await file.write(await self._skybell.async_send_request(url))
+            await file.write(
+                await self._skybell.async_send_request(url, retry=False)
+            )
         if delete:
             await self.async_delete_activity(event[CONST.ACTIVITY_ID])
 

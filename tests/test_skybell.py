@@ -192,6 +192,23 @@ def delete_activity_response(
     )
 
 
+def get_video_response(
+        aresponses: ResponsesMockServer,
+        video: str
+) -> None:
+    """Generate device settings response."""
+    aresponses.add(
+        "skybell-gen5-video.s3.us-east-2.amazonaws.com",
+        video,
+        "GET",
+        aresponses.Response(
+            status=200,
+            headers={"Content-Type": "binary/octet-stream"},
+            body=bytes(2)
+        ),
+    )
+
+
 @pytest.mark.asyncio
 async def test_loop() -> None:
     """Test loop usage is handled correctly."""
@@ -603,7 +620,9 @@ async def test_async_get_activity_video_url(
     aresponses: ResponsesMockServer,
     client: Skybell
 ) -> None:
-    """Test getting the video url for an activity"""
+    """Test getting the video url for an activity.
+        Test simulating a download of a video.
+    """
 
     # Get the device with its activity
     login_response(aresponses)
@@ -624,6 +643,18 @@ async def test_async_get_activity_video_url(
     download_url = await device.async_get_activity_video_url(video=video_id)
     assert download_url ==\
         "https://skybell-gen5-video.s3.us-east-2.amazonaws.com/video-id"
+
+    # Download the video ( and cleanup file)
+    activity_id = act[CONST.ACTIVITY_ID]
+    delete_activity_response(aresponses, activity_id)
+    download_video_url_response(aresponses, video_id=video_id)
+    get_video_response(aresponses, "/video-id")
+    await device.async_download_videos(video=download_url, delete=True)
+    path = client._cache_path[:-7]
+    file = f"{path}_{act[CONST.EVENT_TIME]}.mp4"
+    assert os.path.exists(file) is True
+    if os.path.exists(file):
+        os.remove(file)
 
     loop = asyncio.get_running_loop()
     loop.run_in_executor(None, os.remove(client._cache_path))
@@ -698,3 +729,10 @@ async def test_async_test_ports(client: Skybell) -> None:
     with patch("aioskybell.ClientSession.get") as session:
         session.side_effect = Timeout
         assert await client.async_test_ports("1.2.3.4") is False
+
+
+@pytest.mark.asyncio
+async def ckean_up_cache(client: Skybell) -> None:
+    """Cleanup the cache file."""
+    if os.path.exists(client._cache_path):
+        await os.remove(client._cache_path)
