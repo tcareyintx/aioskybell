@@ -203,13 +203,10 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
             if key == CONST.DEVICE_NAME or key == CONST.BASIC_MOTION:
                 full_update = True
 
-        try:
+            # Send network call
             result = await self._async_settings_request(
                 json=settings, method=CONST.HTTPMethod.POST
             )
-        except SkybellException:
-            _LOGGER.warning("Exception changing settings: %s", settings)
-            result = None
 
         if result is not None:
             # Several fields are outside are displayed outside settings

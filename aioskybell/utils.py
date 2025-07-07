@@ -35,7 +35,7 @@ def calculate_expiration(
     slack: int,
     refresh_cycle: int
 ) -> datetime:
-    """ Calculate the expirate datetime"""
+    """ Calculate the expiration datetime"""
     adj_expires_in = expires_in - slack
     if adj_expires_in <= refresh_cycle:
         adj_expires_in = expires_in

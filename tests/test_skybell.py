@@ -5,7 +5,6 @@ Test Skybell device functionality.
 Tests the device initialization and attributes of the Skybell device class.
 """
 import asyncio
-import datetime as dt
 import os
 from datetime import datetime
 from asyncio.exceptions import TimeoutError as Timeout
@@ -18,7 +17,6 @@ from aresponses import ResponsesMockServer
 from freezegun.api import FrozenDateTimeFactory
 
 from aioskybell import Skybell, exceptions
-from aioskybell import utils as UTILS
 from aioskybell.device import SkybellDevice
 from aioskybell.helpers import const as CONST
 from tests import EMAIL, PASSWORD, load_fixture
@@ -137,6 +135,24 @@ def activities_response(aresponses: ResponsesMockServer, device: str) -> None:
             text=load_fixture("device_activities.json"),
         ),
         match_querystring=True,
+    )
+
+
+def device_settings_response(
+        aresponses: ResponsesMockServer,
+        device: str
+) -> None:
+    """Generate device settings response."""
+    path = f"/api/v5/devices/{device}/settings/"
+    aresponses.add(
+        "api.skybell.network",
+        path,
+        "POST",
+        aresponses.Response(
+            status=200,
+            headers={"Content-Type": "application/json"},
+            text=load_fixture("device-settings.json"),
+        ),
     )
 
 
@@ -383,3 +399,202 @@ async def test_async_refresh_device(
     loop.run_in_executor(None, os.remove(client._cache_path))
 
     assert aresponses.assert_no_unused_routes() is None
+
+
+@pytest.mark.asyncio
+async def test_async_change_setting(
+    aresponses: ResponsesMockServer, client: Skybell
+) -> None:
+    """Test changing settings on device."""
+
+    login_response(aresponses)
+    devices_response(aresponses)
+    data = await client.async_get_devices()
+    device = data[0]
+    assert isinstance(device._device_json["settings"], dict)
+
+    # Test public API and settings structure
+    device_response(aresponses, device.device_id)
+    snapshot_response(aresponses, device.device_id)
+    activities_response(aresponses, device.device_id)
+    device_settings_response(aresponses, device.device_id)
+    await device.async_set_setting("name", "FrontDoor")
+    settings = device._device_json["settings"]
+    assert settings["device_name"] == "FrontDoor"
+
+    device_settings_response(aresponses, device.device_id)
+    await device.async_set_setting("button_pressed", True)
+    settings = device._device_json["settings"]
+    assert settings["button_pressed"] is True
+
+    device_settings_response(aresponses, device.device_id)
+    await device.async_set_setting("led_control", "Normal")
+    settings = device._device_json["settings"]
+    assert settings["led_control"] == "Normal"
+
+    device_settings_response(aresponses, device.device_id)
+    await device.async_set_setting("led_color", "#00ff00")
+    settings = device._device_json["settings"]
+    assert settings["led_color"] == "#00ff00"
+
+    device_settings_response(aresponses, device.device_id)
+    await device.async_set_setting("indoor_chime", True)
+    settings = device._device_json["settings"]
+    assert settings["indoor_chime"] is True
+
+    device_settings_response(aresponses, device.device_id)
+    await device.async_set_setting("digital_chime", False)
+    settings = device._device_json["settings"]
+    assert settings["digital_chime"] is False
+
+    device_settings_response(aresponses, device.device_id)
+    await device.async_set_setting("outdoor_chime", True)
+    settings = device._device_json["settings"]
+    assert settings["outdoor_chime"] is True
+
+    device_settings_response(aresponses, device.device_id)
+    await device.async_set_setting("outdoor_chime_volume", 2)
+    settings = device._device_json["settings"]
+    assert settings["outdoor_chime_volume"] == 2
+
+    device_settings_response(aresponses, device.device_id)
+    await device.async_set_setting("speaker_volume", 1)
+    settings = device._device_json["settings"]
+    assert settings["speaker_volume"] == 1
+
+    device_settings_response(aresponses, device.device_id)
+    await device.async_set_setting("motion_detection", True)
+    settings = device._device_json["settings"]
+    assert settings["motion_detection"] is True
+
+    device_settings_response(aresponses, device.device_id)
+    await device.async_set_setting("debug_motion_detect", True)
+    settings = device._device_json["settings"]
+    assert settings["debug_motion_detect"] is True
+
+    device_settings_response(aresponses, device.device_id)
+    await device.async_set_setting("motion_sensitivity", 1000)
+    settings = device._device_json["settings"]
+    assert settings["motion_sensitivity"] == 1000
+
+    device_settings_response(aresponses, device.device_id)
+    await device.async_set_setting("hmbd_sensitivity", 500)
+    settings = device._device_json["settings"]
+    assert settings["hmbd_sensitivity"] == 500
+
+    device_settings_response(aresponses, device.device_id)
+    await device.async_set_setting("fd_sensitivity", 500)
+    settings = device._device_json["settings"]
+    assert settings["fd_sensitivity"] == 500
+
+    device_settings_response(aresponses, device.device_id)
+    await device.async_set_setting("pir_sensitivity", 524)
+    settings = device._device_json["settings"]
+    assert settings["pir_sensitivity"] == 524
+    assert device.pir_sensitivity == 524
+
+    device_settings_response(aresponses, device.device_id)
+    await device.async_set_setting("image_quality", 0)
+    settings = device._device_json["settings"]
+    assert settings["image_quality"] == 0
+    assert device.image_quality == 0
+
+    with pytest.raises(exceptions.SkybellException):
+        await client.async_get_device("foo")
+
+    # Test Range Exceptions (_validate_setting)
+    # Check the enumerations
+    with pytest.raises(exceptions.SkybellException):
+        await device.async_set_setting(CONST.OUTDOOR_CHIME_VOLUME, 4)
+
+    with pytest.raises(exceptions.SkybellException):
+        await device.async_set_setting(CONST.SPEAKER_VOLUME, 4)
+
+    with pytest.raises(exceptions.SkybellException):
+        await device.async_set_setting(CONST.IMAGE_QUALITY, 4)
+
+    # Check the booleans
+    with pytest.raises(exceptions.SkybellException):
+        await device.async_set_setting(CONST.INDOOR_CHIME, 4)
+
+    with pytest.raises(exceptions.SkybellException):
+        await device.async_set_setting(CONST.INDOOR_DIGITAL_CHIME, 4)
+
+    with pytest.raises(exceptions.SkybellException):
+        await device.async_set_setting(CONST.OUTDOOR_CHIME, 4)
+
+    with pytest.raises(exceptions.SkybellException):
+        await device.async_set_setting(CONST.MOTION_DETECTION, 4)
+
+    with pytest.raises(exceptions.SkybellException):
+        await device.async_set_setting(CONST.DEBUG_MOTION_DETECTION, 4)
+
+    with pytest.raises(exceptions.SkybellException):
+        await device.async_set_setting(CONST.BUTTON_PRESSED, 4)
+
+    # Check the ranges
+    with pytest.raises(exceptions.SkybellException):
+        await device.async_set_setting(CONST.MOTION_SENSITIVITY, 1500)
+
+    with pytest.raises(exceptions.SkybellException):
+        await device.async_set_setting(CONST.MOTION_PIR_SENSITIVITY, 1500)
+
+    with pytest.raises(exceptions.SkybellException):
+        await device.async_set_setting(CONST.MOTION_HMBD_SENSITIVITY, 1500)
+
+    with pytest.raises(exceptions.SkybellException):
+        await device.async_set_setting(CONST.MOTION_FD_SENSITIVITY, 1500)
+
+    # Validate the basic motion fields
+    motion_dict = {
+        CONST.BASIC_MOTION_NOTIFY: True,
+        CONST.BASIC_MOTION_RECORD: True,
+        CONST.BASIC_MOTION_FD_NOTIFY: True,
+        CONST.BASIC_MOTION_FD_RECORD: True,
+        CONST.BASIC_MOTION_HBD_NOTIFY: True,
+        CONST.BASIC_MOTION_HBD_RECORD: True,
+        "invalid_field": False,
+    }
+    with pytest.raises(exceptions.SkybellException):
+        await device.async_set_setting(CONST.BASIC_MOTION, motion_dict)
+
+    loop = asyncio.get_running_loop()
+    loop.run_in_executor(None, os.remove(client._cache_path))
+
+    assert aresponses.assert_no_unused_routes() is None
+
+
+@pytest.mark.asyncio
+async def test_cache(
+    aresponses: ResponsesMockServer,
+    client: Skybell,
+) -> None:
+    """Test cache."""
+
+    login_response(aresponses)
+    user_response(aresponses)
+    devices_response(aresponses)
+    # Create the cache file
+    if os.path.exists(client._cache_path):
+        await os.remove(client._cache_path)
+
+    # Load the cache and write to the file
+    await client.async_initialize()
+
+    # Test the contents of the cache file
+    assert os.path.exists(client._cache_path) is True
+    async with aiofiles.open(client._cache_path, mode='r') as f:
+        contents = await f.read()
+    assert len(contents) > 0
+
+
+@pytest.mark.asyncio
+async def test_async_test_ports(client: Skybell) -> None:
+    """Test open ports."""
+    with patch("aioskybell.ClientSession.get") as session:
+        session.side_effect = ClientConnectorError("", OSError(61, ""))
+        assert await client.async_test_ports("1.2.3.4") is True
+
+    with patch("aioskybell.ClientSession.get") as session:
+        session.side_effect = Timeout
+        assert await client.async_test_ports("1.2.3.4") is False
