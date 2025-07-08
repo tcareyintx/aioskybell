@@ -467,7 +467,7 @@ async def test_async_refresh_device(
 
     # Test the images
     assert device.images[CONST.SNAPSHOT] == b'hello world'
-    assert device.images[CONST.ACTIVITY] == "\\x00\\x00\\x00"
+    assert device.images[CONST.ACTIVITY] == b'hello world'
 
     # Test the activities for the device
     data = device.activities()[0]
@@ -802,7 +802,8 @@ async def test_async_test_ports(client: Skybell) -> None:
 
 
 @pytest.mark.asyncio
-async def ckean_up_cache(client: Skybell) -> None:
+async def clean_up_cache(client: Skybell) -> None:
     """Cleanup the cache file."""
     if os.path.exists(client._cache_path):
         await os.remove(client._cache_path)
+    assert await os.path.exists(client._cache_path) is False
