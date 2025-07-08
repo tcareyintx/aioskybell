@@ -354,11 +354,15 @@ async def test_async_get_devices(
     # Test punlic API and settings structure
     settings = device._device_json["settings"]
     assert settings["time_zone_info"] == {
-                            "mapLat": 1.0,
-                            "mapLong": -1.0,
-                            "place": "Anywhere"
-                        }
-    assert device.location == ("1.0", "-1.0")
+                    "mapLat": 1.0,
+                    "mapLong": -1.0,
+                    "place": "Anywhere"
+                }
+    assert device.location == {
+                    "mapLat": 1.0,
+                    "mapLong": -1.0,
+                    "place": "Anywhere"
+                }
     assert settings["device_name"] == "FrontDoor"
     assert settings["button_pressed"] is True
     assert device.button_pressed is True
@@ -608,6 +612,16 @@ async def test_async_change_setting(
     }
     with pytest.raises(exceptions.SkybellException):
         await device.async_set_setting(CONST.BASIC_MOTION, motion_dict)
+
+    # Validate the time zone fields
+    tz_dict = {
+        CONST.LOCATION_LAT: 1.0,
+        CONST.LOCATION_LON: -1.0,
+        CONST.LOCATION_PLACE: "Anywhere",
+        "invalid_field": False,
+    }
+    with pytest.raises(exceptions.SkybellException):
+        await device.async_set_setting(CONST.TIMEZONE_INFO, tz_dict)
 
     loop = asyncio.get_running_loop()
     loop.run_in_executor(None, os.remove(client._cache_path))

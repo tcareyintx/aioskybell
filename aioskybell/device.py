@@ -200,7 +200,7 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
                     self, "Attempted setting with read-only scope."
                 )
             self._validate_setting(key, value)
-            if key == CONST.DEVICE_NAME or key == CONST.BASIC_MOTION:
+            if key in CONST.FULL_UPDATE_REQUIRED:
                 full_update = True
 
             # Send network call
@@ -317,12 +317,29 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
             for field, field_value in value.items():
                 if field not in CONST.BASIC_MOTION_FIELDS:
                     raise SkybellException(
-                        ERROR.INVALID_SETTING_VALUE, (setting, value)
+                        ERROR.INVALID_SETTING_VALUE, (field, field_value)
                     )
                 elif not isinstance(field_value, bool):
                     raise SkybellException(
-                        ERROR.INVALID_SETTING_VALUE, (setting, value)
+                        ERROR.INVALID_SETTING_VALUE, (field, field_value)
                     )
+        elif setting == CONST.TIMEZONE_INFO:
+            for field, field_value in value.items():
+                if field not in CONST.TIME_ZONE_FIELDS:
+                    raise SkybellException(
+                        ERROR.INVALID_SETTING_VALUE, (field, field_value)
+                    )
+                elif (field == CONST.LOCATION_LAT
+                      or field == CONST.LOCATION_LON):
+                    if not isinstance(field_value, float):
+                        raise SkybellException(
+                            ERROR.INVALID_SETTING_VALUE, (field, field_value)
+                        )
+                elif field == CONST.LOCATION_PLACE:
+                    if not isinstance(field_value, str):
+                        raise SkybellException(
+                            ERROR.INVALID_SETTING_VALUE, (field, field_value)
+                        )
         elif setting == CONST.OUTDOOR_CHIME_VOLUME:
             if value not in CONST.OUTDOOR_CHIME_VALUES:
                 raise SkybellException(ERROR.INVALID_SETTING_VALUE,
@@ -533,14 +550,10 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
         return ssid
 
     @property
-    def location(self) -> tuple[str, str]:
-        """Return lat and lng tuple."""
+    def location(self) -> dict:
+        """Get devices locatioon."""
         settings_json = self._device_json.get(CONST.SETTINGS, {})
-        timezone_info = settings_json.get(CONST.TIMEZONE_INFO, {})
-        return (
-            str(timezone_info.get(CONST.LOCATION_LAT, 0)),
-            str(timezone_info.get(CONST.LOCATION_LON, 0)),
-        )
+        return settings_json.get(CONST.TIMEZONE_INFO, {})
 
     @property
     def button_pressed(self) -> bool:
