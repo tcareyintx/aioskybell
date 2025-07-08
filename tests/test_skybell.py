@@ -124,7 +124,7 @@ def snapshot_response(aresponses: ResponsesMockServer, device: str) -> None:
 
 def activities_response(aresponses: ResponsesMockServer, device: str) -> None:
     """Generate snapshot response."""
-    path = f"/api/v5/activity?device_id={device}&nopreviews=0"
+    path = f"/api/v5/activity?device_id={device}"
     aresponses.add(
         "api.skybell.network",
         path,
@@ -133,6 +133,26 @@ def activities_response(aresponses: ResponsesMockServer, device: str) -> None:
             status=200,
             headers={"Content-Type": "application/json"},
             text=load_fixture("device_activities.json"),
+        ),
+        match_querystring=True,
+    )
+
+
+def activities_image_response(
+        aresponses: ResponsesMockServer,
+        device: str,
+        query: str
+) -> None:
+    """Generate snapshot response."""
+    path = f"/api/v5/activity?device_id={device}{query}"
+    aresponses.add(
+        "api.skybell.network",
+        path,
+        "GET",
+        aresponses.Response(
+            status=200,
+            headers={"Content-Type": "application/json"},
+            text=load_fixture("device_activity.json"),
         ),
         match_querystring=True,
     )
@@ -216,6 +236,28 @@ async def test_loop() -> None:
         assert isinstance(skybell, Skybell)
         cemail = EMAIL.replace(".", "")
         assert skybell._cache_path == f"skybell_{cemail}.pickle"
+
+
+@pytest.mark.asyncio
+async def test_failed_login(
+    aresponses: ResponsesMockServer
+) -> None:
+    """Test faild_login."""
+    failed_login_response(aresponses)
+    client = Skybell(
+        EMAIL, "password",
+        auto_login=False,
+        get_devices=False,
+        login_sleep=False
+    )
+
+    with pytest.raises(exceptions.SkybellAuthenticationException):
+        await client.async_login()
+
+    loop = asyncio.get_running_loop()
+    loop.run_in_executor(None, os.remove(client._cache_path))
+
+    assert not aresponses.assert_no_unused_routes()
 
 
 @pytest.mark.asyncio
@@ -415,11 +457,17 @@ async def test_async_refresh_device(
     device_response(aresponses, device.device_id)
     snapshot_response(aresponses, device.device_id)
     activities_response(aresponses, device.device_id)
+    query = "&start=1751732390135&end=1751732392135&nopreviews=0"
+    activities_image_response(aresponses, device.device_id, query)
     await device.async_update(get_devices=True)
     assert device._device_json["device_id"] == "012345670123456789abcdef"
     assert device.device_id == "012345670123456789abcdef"
     assert device._device_json["name"] == "FrontDoor"
     assert device.name == "FrontDoor"
+
+    # Test the images
+    assert device.images[CONST.SNAPSHOT] == b'hello world'
+    assert device.images[CONST.ACTIVITY] == "\\x00\\x00\\x00"
 
     # Test the activities for the device
     data = device.activities()[0]
@@ -443,6 +491,8 @@ async def test_async_refresh_device(
     # Test a basic update that does not get the device
     snapshot_response(aresponses, device.device_id)
     activities_response(aresponses, device.device_id)
+    query = "&start=1751732390135&end=1751732392135&nopreviews=0"
+    activities_image_response(aresponses, device.device_id, query)
     await device.async_update()
     assert device._device_json["device_id"] == "012345670123456789abcdef"
     assert device.device_id == "012345670123456789abcdef"
@@ -472,6 +522,8 @@ async def test_async_change_setting(
     device_response(aresponses, device.device_id)
     snapshot_response(aresponses, device.device_id)
     activities_response(aresponses, device.device_id)
+    query = "&start=1751732390135&end=1751732392135&nopreviews=0"
+    activities_image_response(aresponses, device.device_id, query)
     device_settings_response(aresponses, device.device_id)
     await device.async_set_setting("name", "FrontDoor")
     settings = device._device_json["settings"]
@@ -648,6 +700,8 @@ async def test_async_get_activity_video_url(
     device_response(aresponses, device.device_id)
     snapshot_response(aresponses, device.device_id)
     activities_response(aresponses, device.device_id)
+    query = "&start=1751732390135&end=1751732392135&nopreviews=0"
+    activities_image_response(aresponses, device.device_id, query)
     await device.async_update(get_devices=True)
 
     # Get video url associated with an activity
@@ -693,6 +747,8 @@ async def test_async_delete_activity(
     device_response(aresponses, device.device_id)
     snapshot_response(aresponses, device.device_id)
     activities_response(aresponses, device.device_id)
+    query = "&start=1751732390135&end=1751732392135&nopreviews=0"
+    activities_image_response(aresponses, device.device_id, query)
     await device.async_update(get_devices=True)
 
     # Get activiry id associated with an activity

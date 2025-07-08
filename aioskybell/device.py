@@ -62,13 +62,20 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
         url = str.replace(CONST.DEVICE_SETTINGS_URL, "$DEVID$", self.device_id)
         return await self._skybell.async_send_request(url, json=json, **kwargs)
 
-    async def _async_activities_request(self) -> list[ActivityData]:
+    async def _async_activities_request(
+        self,
+        query: str | None = None
+    ) -> list[ActivityData]:
         """Activities returns a list of all activity on the device
         Note that the activities is limited to default limit
-        as pagination is not supported in the activities request
+        as pagination is not supported in the activities request.
+        If a query is passed append that to the URL that already
+        has the device query item.
         """
         url = str.replace(CONST.DEVICE_ACTIVITIES_URL, "$DEVID$",
                           self.device_id)
+        if query is not None:
+            url += query
         response = await self._skybell.async_send_request(url)
         if response is None:
             return []
@@ -113,9 +120,29 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
         await self._async_update_events()
 
         act = self.latest()
-        image = act[CONST.IMAGE]
-        if image is None:
-            image = b""
+        await self._async_update_activity_image(act)
+
+    async def _async_update_activity_image(
+        self,
+        activity: ActivityData | None
+    ) -> None:
+        """Update images for an activity.
+        If no activity is passed get the latest."""
+        if activity is None:
+            activity = self.latest()
+
+        act_id = activity[CONST.ACTIVITY_ID]
+        act_time = activity[CONST.EVENT_TIME]
+        start_time = act_time - 1000
+        end_time = act_time + 1000
+        image = b''
+
+        query = f"&start={start_time}&end={end_time}&nopreviews=0"
+        act_list = await self._async_activities_request(query=query)
+        for act in act_list:
+            if act[CONST.ACTIVITY_ID] == act_id:
+                image = act[CONST.IMAGE]
+
         self.images[CONST.ACTIVITY] = image
 
     async def _async_update_events(
