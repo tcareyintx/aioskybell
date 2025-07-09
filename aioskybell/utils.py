@@ -1,8 +1,9 @@
 """AIOSkybell utility methods."""
+
 from __future__ import annotations
 
-from datetime import datetime, timedelta
 import pickle
+from datetime import datetime, timedelta
 from typing import Any
 
 import aiofiles
@@ -30,12 +31,8 @@ async def async_load_cache(
     return pickle.loads(pickled_foo)
 
 
-def calculate_expiration(
-    expires_in: int,
-    slack: int,
-    refresh_cycle: int
-) -> datetime:
-    """ Calculate the expiration datetime"""
+def calculate_expiration(expires_in: int, slack: int, refresh_cycle: int) -> datetime:
+    """Calculate the expiration datetime"""
     adj_expires_in = expires_in - slack
     if adj_expires_in <= refresh_cycle:
         adj_expires_in = expires_in

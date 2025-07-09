@@ -1,4 +1,5 @@
 """Tests for AIOSkybell."""
+
 import pathlib
 
 EMAIL = "test@test.com"

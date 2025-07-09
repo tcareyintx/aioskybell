@@ -6,8 +6,8 @@ Tests the device initialization and attributes of the Skybell device class.
 """
 import asyncio
 import os
-from datetime import datetime
 from asyncio.exceptions import TimeoutError as Timeout
+from datetime import datetime
 from unittest.mock import patch
 
 import aiofiles
@@ -139,9 +139,7 @@ def activities_response(aresponses: ResponsesMockServer, device: str) -> None:
 
 
 def activities_image_response(
-        aresponses: ResponsesMockServer,
-        device: str,
-        query: str
+    aresponses: ResponsesMockServer, device: str, query: str
 ) -> None:
     """Generate snapshot response."""
     path = f"/api/v5/activity?device_id={device}{query}"
@@ -158,10 +156,7 @@ def activities_image_response(
     )
 
 
-def device_settings_response(
-        aresponses: ResponsesMockServer,
-        device: str
-) -> None:
+def device_settings_response(aresponses: ResponsesMockServer, device: str) -> None:
     """Generate device settings response."""
     path = f"/api/v5/devices/{device}/settings/"
     aresponses.add(
@@ -176,10 +171,7 @@ def device_settings_response(
     )
 
 
-def download_video_url_response(
-        aresponses: ResponsesMockServer,
-        video_id: str
-) -> None:
+def download_video_url_response(aresponses: ResponsesMockServer, video_id: str) -> None:
     """Generate device settings response."""
     path = f"/api/v5{video_id}"
     aresponses.add(
@@ -194,10 +186,7 @@ def download_video_url_response(
     )
 
 
-def delete_activity_response(
-        aresponses: ResponsesMockServer,
-        activity: str
-) -> None:
+def delete_activity_response(aresponses: ResponsesMockServer, activity: str) -> None:
     """Generate device settings response."""
     path = f"/api/v5/activity/{activity}"
     aresponses.add(
@@ -212,19 +201,14 @@ def delete_activity_response(
     )
 
 
-def get_video_response(
-        aresponses: ResponsesMockServer,
-        video: str
-) -> None:
+def get_video_response(aresponses: ResponsesMockServer, video: str) -> None:
     """Generate device settings response."""
     aresponses.add(
         "skybell-gen5-video.s3.us-east-2.amazonaws.com",
         video,
         "GET",
         aresponses.Response(
-            status=200,
-            headers={"Content-Type": "binary/octet-stream"},
-            body=bytes(2)
+            status=200, headers={"Content-Type": "binary/octet-stream"}, body=bytes(2)
         ),
     )
 
@@ -239,16 +223,11 @@ async def test_loop() -> None:
 
 
 @pytest.mark.asyncio
-async def test_failed_login(
-    aresponses: ResponsesMockServer
-) -> None:
+async def test_failed_login(aresponses: ResponsesMockServer) -> None:
     """Test faild_login."""
     failed_login_response(aresponses)
     client = Skybell(
-        EMAIL, "password",
-        auto_login=False,
-        get_devices=False,
-        login_sleep=False
+        EMAIL, "password", auto_login=False, get_devices=False, login_sleep=False
     )
 
     with pytest.raises(exceptions.SkybellAuthenticationException):
@@ -261,9 +240,7 @@ async def test_failed_login(
 
 
 @pytest.mark.asyncio
-async def test_async_initialize_and_logout(
-    aresponses: ResponsesMockServer
-) -> None:
+async def test_async_initialize_and_logout(aresponses: ResponsesMockServer) -> None:
     """Test initializing and logout."""
     client = Skybell(
         EMAIL, PASSWORD, auto_login=True, get_devices=True, login_sleep=False
@@ -312,9 +289,7 @@ async def test_async_initialize_and_logout(
 
 @pytest.mark.asyncio
 async def test_async_get_devices(
-    aresponses: ResponsesMockServer,
-    client: Skybell,
-    freezer: FrozenDateTimeFactory
+    aresponses: ResponsesMockServer, client: Skybell, freezer: FrozenDateTimeFactory
 ) -> None:
     """Test getting devices."""
     freezer.move_to("2023-03-30 13:33:00+00:00")
@@ -322,28 +297,27 @@ async def test_async_get_devices(
     devices_response(aresponses)
 
     # Test the Get Device and device specific attributes
-    data = await client.async_get_device("012345670123456789abcdef",
-                                         refresh=True)
+    data = await client.async_get_device("012345670123456789abcdef", refresh=True)
     assert isinstance(data, SkybellDevice)
     device = client._devices["012345670123456789abcdef"]
     assert isinstance(device, SkybellDevice)
     # Test public API and device data structure
     assert device._device_json["basic_motion"] == {
-                    "fd_notify": True,
-                    "fd_record": True,
-                    "hbd_notify": True,
-                    "hbd_record": True,
-                    "motion_notify": True,
-                    "motion_record": True
-                }
+        "fd_notify": True,
+        "fd_record": True,
+        "hbd_notify": True,
+        "hbd_record": True,
+        "motion_notify": True,
+        "motion_record": True,
+    }
     assert device.basic_motion == {
-                    "fd_notify": True,
-                    "fd_record": True,
-                    "hbd_notify": True,
-                    "hbd_record": True,
-                    "motion_notify": True,
-                    "motion_record": True
-                }
+        "fd_notify": True,
+        "fd_record": True,
+        "hbd_notify": True,
+        "hbd_record": True,
+        "motion_notify": True,
+        "motion_record": True,
+    }
     assert device._device_json["created_at"] == "2020-10-20T14:35:00.745Z"
     assert (
         device._device_json["invite_token"]
@@ -355,8 +329,7 @@ async def test_async_get_devices(
     assert device.name == "FrontDoor"
     assert device._device_json["last_connected"] == "2020-10-21T14:35:00.745Z"
     assert device.last_connected.strftime("%Y-%m-%d") == "2020-10-21"
-    assert (device._device_json["last_disconnected"] ==
-            "2020-10-20T14:35:00.745Z")
+    assert device._device_json["last_disconnected"] == "2020-10-20T14:35:00.745Z"
     assert device.last_disconnected.strftime("%Y-%m-%d") == "2020-10-20"
     assert device._device_json["updated_at"] == "2021-10-20T14:35:00.745Z"
     assert device._device_json["account_id"] == "123-123-123"
@@ -365,8 +338,11 @@ async def test_async_get_devices(
     assert device.is_readonly is False
     assert device.status == "Up"
     assert device.is_up is True
-    assert device.desc == "FrontDoor (id: 012345670123456789abcdef) " +\
-        "- SB_SLIM2_0001 - status: Up - WiFi link quality: 98/100"
+    assert (
+        device.desc
+        == "FrontDoor (id: 012345670123456789abcdef) "
+        + "- SB_SLIM2_0001 - status: Up - WiFi link quality: 98/100"
+    )
 
     # Test public API and device settings structure
     device_settings = device._device_json["device_settings"]
@@ -396,15 +372,11 @@ async def test_async_get_devices(
     # Test punlic API and settings structure
     settings = device._device_json["settings"]
     assert settings["time_zone_info"] == {
-                    "mapLat": 1.0,
-                    "mapLong": -1.0,
-                    "place": "Anywhere"
-                }
-    assert device.location == {
-                    "mapLat": 1.0,
-                    "mapLong": -1.0,
-                    "place": "Anywhere"
-                }
+        "mapLat": 1.0,
+        "mapLong": -1.0,
+        "place": "Anywhere",
+    }
+    assert device.location == {"mapLat": 1.0, "mapLong": -1.0, "place": "Anywhere"}
     assert settings["device_name"] == "FrontDoor"
     assert settings["button_pressed"] is True
     assert device.button_pressed is True
@@ -466,8 +438,8 @@ async def test_async_refresh_device(
     assert device.name == "FrontDoor"
 
     # Test the images
-    assert device.images[CONST.SNAPSHOT] == b'hello world'
-    assert device.images[CONST.ACTIVITY] == b'hello world'
+    assert device.images[CONST.SNAPSHOT] == b"hello world"
+    assert device.images[CONST.ACTIVITY] == b"hello world"
 
     # Test the activities for the device
     data = device.activities()[0]
@@ -478,15 +450,18 @@ async def test_async_refresh_device(
     assert data["device_id"] == "012345670123456789abcdef"
     assert data["image"] is None
     assert data["video_ready"] is True
-    assert data["video_url"] ==\
-        "/activity/act-doorbell/video"
+    assert data["video_url"] == "/activity/act-doorbell/video"
 
     assert isinstance(device.activities(event="motion"), list)
     assert isinstance(device.latest(event_type="motion"), dict)
-    assert device.latest(event_type="motion")[CONST.CREATED_AT] ==\
-        "2019-07-05T14:30:17.659Z"
-    assert device.latest(event_type="doorbell")[CONST.CREATED_AT] ==\
-        "2019-07-05T16:19:51.157Z"
+    assert (
+        device.latest(event_type="motion")[CONST.CREATED_AT]
+        == "2019-07-05T14:30:17.659Z"
+    )
+    assert (
+        device.latest(event_type="doorbell")[CONST.CREATED_AT]
+        == "2019-07-05T16:19:51.157Z"
+    )
 
     # Test a basic update that does not get the device
     snapshot_response(aresponses, device.device_id)
@@ -683,11 +658,10 @@ async def test_async_change_setting(
 
 @pytest.mark.asyncio
 async def test_async_get_activity_video_url(
-    aresponses: ResponsesMockServer,
-    client: Skybell
+    aresponses: ResponsesMockServer, client: Skybell
 ) -> None:
     """Test getting the video url for an activity.
-        Test simulating a download of a video.
+    Test simulating a download of a video.
     """
 
     # Get the device with its activity
@@ -709,8 +683,9 @@ async def test_async_get_activity_video_url(
     video_id = act[CONST.VIDEO_URL]
     download_video_url_response(aresponses, video_id=video_id)
     download_url = await device.async_get_activity_video_url(video=video_id)
-    assert download_url ==\
-        "https://skybell-gen5-video.s3.us-east-2.amazonaws.com/video-id"
+    assert (
+        download_url == "https://skybell-gen5-video.s3.us-east-2.amazonaws.com/video-id"
+    )
 
     # Download the video ( and cleanup file)
     activity_id = act[CONST.ACTIVITY_ID]
@@ -732,8 +707,7 @@ async def test_async_get_activity_video_url(
 
 @pytest.mark.asyncio
 async def test_async_delete_activity(
-    aresponses: ResponsesMockServer,
-    client: Skybell
+    aresponses: ResponsesMockServer, client: Skybell
 ) -> None:
     """Test deleting an activity"""
 
@@ -784,7 +758,7 @@ async def test_cache(
 
     # Test the contents of the cache file
     assert os.path.exists(client._cache_path) is True
-    async with aiofiles.open(client._cache_path, mode='r') as f:
+    async with aiofiles.open(client._cache_path, mode="r") as f:
         contents = await f.read()
     assert len(contents) > 0
 

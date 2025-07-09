@@ -1,4 +1,5 @@
 """The exceptions used by AIOSkybell."""
+
 from __future__ import annotations
 
 
