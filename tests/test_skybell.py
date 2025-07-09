@@ -227,18 +227,36 @@ async def test_failed_login(aresponses: ResponsesMockServer) -> None:
     client = Skybell(
         EMAIL, "password", auto_login=False, get_devices=False, login_sleep=False
     )
-
     with pytest.raises(exceptions.SkybellAuthenticationException):
         await client.async_login()
+    await client.async_logout()
+
+    # Test No password
+    with pytest.raises(exceptions.SkybellAuthenticationException):
+        client = Skybell(
+            EMAIL, None, auto_login=False, get_devices=False, login_sleep=False
+        )
+        await client.async_login()
+    await client.async_logout()
 
     os.remove(client._cache_path)
-
     assert not aresponses.assert_no_unused_routes()
 
 
 @pytest.mark.asyncio
 async def test_async_initialize_and_logout(aresponses: ResponsesMockServer) -> None:
-    """Test initializing and logout."""
+    """Test ;login initializing and logout."""
+    
+    # Test login parameters
+    user_response(aresponses)
+    client = Skybell(
+        EMAIL, PASSWORD, auto_login=False, get_devices=False, login_sleep=False
+    )
+    result = await client.async_login(username=EMAIL, password=PASSWORD)
+    await client.async_logout()
+    assert result is True
+
+    # Test initializing and logout.
     client = Skybell(
         EMAIL, PASSWORD, auto_login=True, get_devices=True, login_sleep=False
     )
