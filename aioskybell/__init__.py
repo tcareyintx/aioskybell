@@ -69,7 +69,7 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
 
         # Create a new cache template
         self._cache: dict[str, Any] = {
-            CONST.AUTHENTICATION_RESULT: dict[str, Any],
+            CONST.AUTHENTICATION_RESULT: {},
         }
 
     async def __aenter__(self) -> Skybell:
@@ -125,7 +125,7 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
             )
 
         # Clear any cached login data
-        await self.async_update_cache({CONST.AUTHENTICATION_RESULT: dict[str, Any]})
+        await self.async_update_cache({CONST.AUTHENTICATION_RESULT: {}})
 
         login_data: dict[str, str | int] = {
             "username": self._username,
@@ -170,7 +170,7 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
                 await self._session.close()
             self._devices = {}
 
-        await self.async_update_cache({CONST.AUTHENTICATION_RESULT: dict[str, Any]})
+        await self.async_update_cache({CONST.AUTHENTICATION_RESULT: {}})
 
         return True
 
