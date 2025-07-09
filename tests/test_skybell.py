@@ -4,13 +4,11 @@ Test Skybell device functionality.
 
 Tests the device initialization and attributes of the Skybell device class.
 """
-import asyncio
 import os
 from asyncio.exceptions import TimeoutError as Timeout
 from datetime import datetime
 from unittest.mock import patch
 
-import aiofiles
 import pytest
 from aiohttp import ClientConnectorError
 from aresponses import ResponsesMockServer
@@ -745,11 +743,8 @@ async def test_cache(
     # Load the cache and write to the file
     await client.async_initialize()
 
-    # Test the contents of the cache file
-    assert os.path.exists(client._cache_path) is True
-    async with aiofiles.open(client._cache_path, mode="r") as f:
-        contents = await f.read()
-    assert len(contents) > 0
+    # Test that the cache file has content
+    assert os.path.getsize(client._cache_path) > 0
 
 
 @pytest.mark.asyncio
