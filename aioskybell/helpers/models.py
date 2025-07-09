@@ -4,9 +4,10 @@ from __future__ import annotations
 
 
 class TimezoneData(dict):
-    """Class for Timezone settings
-    permitted for the device.
-    See /api/v5/devices/DEVICE_ID/settings"""
+    """Class for Timezone settings permitted for the device.
+
+    See /api/v5/devices/DEVICE_ID/settings.
+    """
 
     place: str | None
     mapLat: float | None
@@ -14,9 +15,10 @@ class TimezoneData(dict):
 
 
 class BasicMotionData(dict):
-    """Class for Basic Motion settings
-    permitted for the device.
-    See /api/v5/devices/DEVICE_ID/settings"""
+    """Class for Basic Motion settings permitted for the device.
+
+    See /api/v5/devices/DEVICE_ID/settings.
+    """
 
     fd_notify: bool
     fd_record: bool
@@ -28,7 +30,9 @@ class BasicMotionData(dict):
 
 class SettingsData(dict):
     """Class for update settings permitted for the device.
-    See /api/v5/devices/DEVICE_ID/settings"""
+
+    See /api/v5/devices/DEVICE_ID/settings.
+    """
 
     device_name: str | None
     button_pressed: bool | None
@@ -52,7 +56,9 @@ class SettingsData(dict):
 
 class DeviceSettingsData(dict):
     """Class for device_settings in a retrieved device.
-    See /api/v5/devices/DEVICE_ID"""
+
+    See /api/v5/devices/DEVICE_ID.
+    """
 
     essid: str
     model_rev: str
@@ -65,7 +71,9 @@ class DeviceSettingsData(dict):
 
 class TelemetryData(dict):
     """Class for telemetry in a retrieved device.
-    See /api/v5/devices/DEVICE_ID"""
+
+    See /api/v5/devices/DEVICE_ID.
+    """
 
     wifi_noise: str
     link_quality: str
@@ -75,8 +83,10 @@ class TelemetryData(dict):
 
 
 class SnapshotData(dict):
-    """Class for the device snapshot (avatar)
-    in a retrieved device. See /api/v5/devices/DEVICE_ID"""
+    """Class for the device snapshot (avatar).
+
+    See /api/v5/devices/DEVICE_ID.
+    """
 
     date_time: str
     preview: str
@@ -84,7 +94,9 @@ class SnapshotData(dict):
 
 class DeviceData(dict):
     """Class for device.
-    See /api/v5/devices/DEVICE_ID"""
+
+    See /api/v5/devices/DEVICE_ID.
+    """
 
     device_id: str
     client_id: str
@@ -104,7 +116,9 @@ class DeviceData(dict):
 
 class ActivityData(dict):
     """Class for an activity (event).
-    See /api/v5/activities"""
+
+    See /api/v5/activities.
+    """
 
     event_time: int
     account_id: str

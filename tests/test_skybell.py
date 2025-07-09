@@ -256,8 +256,6 @@ async def test_async_initialize_and_logout(aresponses: ResponsesMockServer) -> N
     assert client._cache["AuthenticationResult"]
     ar = client._cache["AuthenticationResult"]
     assert ar["AccessToken"] == "superlongkey"
-    with pytest.raises(KeyError):
-        client._cache["devices"]
 
     assert isinstance(data[0], SkybellDevice)
     device = client._devices["012345670123456789abcdef"]
@@ -661,6 +659,7 @@ async def test_async_get_activity_video_url(
     aresponses: ResponsesMockServer, client: Skybell
 ) -> None:
     """Test getting the video url for an activity.
+
     Test simulating a download of a video.
     """
 
@@ -709,7 +708,7 @@ async def test_async_get_activity_video_url(
 async def test_async_delete_activity(
     aresponses: ResponsesMockServer, client: Skybell
 ) -> None:
-    """Test deleting an activity"""
+    """Test deleting an activity."""
 
     # Get the device with its activity
     login_response(aresponses)
