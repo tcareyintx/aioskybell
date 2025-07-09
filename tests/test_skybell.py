@@ -246,9 +246,9 @@ async def test_failed_login(aresponses: ResponsesMockServer) -> None:
 @pytest.mark.asyncio
 async def test_async_initialize_and_logout(aresponses: ResponsesMockServer) -> None:
     """Test ;login initializing and logout."""
-    
+
     # Test login parameters
-    user_response(aresponses)
+    login_response(aresponses)
     client = Skybell(
         EMAIL, PASSWORD, auto_login=False, get_devices=False, login_sleep=False
     )
