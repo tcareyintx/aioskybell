@@ -233,8 +233,7 @@ async def test_failed_login(aresponses: ResponsesMockServer) -> None:
     with pytest.raises(exceptions.SkybellAuthenticationException):
         await client.async_login()
 
-    loop = asyncio.get_running_loop()
-    loop.run_in_executor(None, os.remove(client._cache_path))
+    os.remove(client._cache_path)
 
     assert not aresponses.assert_no_unused_routes()
 
@@ -279,9 +278,7 @@ async def test_async_initialize_and_logout(aresponses: ResponsesMockServer) -> N
     with pytest.raises(RuntimeError):
         await client.async_login()
 
-    loop = asyncio.get_running_loop()
-    loop.run_in_executor(None, os.remove(client._cache_path))
-
+    os.remove(client._cache_path)
     assert not aresponses.assert_no_unused_routes()
 
 
@@ -473,8 +470,7 @@ async def test_async_refresh_device(
     assert device.name == "FrontDoor"
 
     # Clear the cache file
-    loop = asyncio.get_running_loop()
-    loop.run_in_executor(None, os.remove(client._cache_path))
+    os.remove(client._cache_path)
 
     assert aresponses.assert_no_unused_routes() is None
 
@@ -648,9 +644,7 @@ async def test_async_change_setting(
     with pytest.raises(exceptions.SkybellException):
         await device.async_set_setting(CONST.TIMEZONE_INFO, tz_dict)
 
-    loop = asyncio.get_running_loop()
-    loop.run_in_executor(None, os.remove(client._cache_path))
-
+    os.remove(client._cache_path)
     assert aresponses.assert_no_unused_routes() is None
 
 
@@ -698,9 +692,7 @@ async def test_async_get_activity_video_url(
     if os.path.exists(file):
         os.remove(file)
 
-    loop = asyncio.get_running_loop()
-    loop.run_in_executor(None, os.remove(client._cache_path))
-
+    os.remove(client._cache_path)
     assert not aresponses.assert_no_unused_routes()
 
 
@@ -732,9 +724,7 @@ async def test_async_delete_activity(
     assert len(device._activities) == 1
     assert len(device._events) == 1
 
-    loop = asyncio.get_running_loop()
-    loop.run_in_executor(None, os.remove(client._cache_path))
-
+    os.remove(client._cache_path)
     assert not aresponses.assert_no_unused_routes()
 
 
