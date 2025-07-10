@@ -18,7 +18,7 @@ from datetime import datetime
 from typing import Any, cast
 
 from aiohttp.client import ClientSession, ClientTimeout
-from aiohttp.client_exceptions import ClientConnectorError, ClientError
+from aiohttp.client_exceptions import ContentTypeError, ClientConnectorError, ClientError
 
 from . import utils as UTILS
 from .device import SkybellDevice
@@ -109,7 +109,7 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
 
     async def async_login(
         self, username: str | None = None, password: str | None = None
-    ) -> bool:
+    ):
         """Execute Skybell login.
 
         Exceptions: SkybellAuthentionException, SkybellException.
@@ -158,8 +158,6 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
         else:
             _LOGGER.info("Login successful")
 
-        return True
-
     async def async_logout(self) -> bool:
         """Explicit Skybell logout."""
         if len(self.cache(CONST.AUTHENTICATION_RESULT)) > 0:
@@ -181,10 +179,9 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
         """
 
         auth_result = self.cache(CONST.AUTHENTICATION_RESULT)
+        refresh_token = ""
         if auth_result:
             refresh_token = cast(dict, auth_result).get(CONST.REFRESH_TOKEN, "")
-        else:
-            refresh_token = ""
 
         if not self._session or not refresh_token:
             raise SkybellAuthenticationException(self, "No session established")
@@ -282,10 +279,9 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
         The period that the session will last without a refresh of the login.
         """
         auth_result = self.cache(CONST.AUTHENTICATION_RESULT)
+        period = 0
         if auth_result:
             period = cast(dict[str, Any], auth_result).get(CONST.TOKEN_EXPIRATION, 0)
-        else:
-            period = 0
         return period
 
     @property
@@ -312,12 +308,7 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
                    SkybellUnknownResourceExceptionm SkybellRequestException
         """
         if len(self.cache(CONST.AUTHENTICATION_RESULT)) == 0 and url != CONST.LOGIN_URL:
-            response = await self.async_login()
-            if response is False:
-                _LOGGER.exception("Failed login unable to send request: %s", url)
-                raise SkybellAuthenticationException(
-                    f"Failed login unable to send request: {url}"
-                )
+            await self.async_login()
 
         headers = headers if headers else {}
         if CONST.BASE_AUTH_DOMAIN in url or CONST.BASE_API_DOMAIN in url:
@@ -366,7 +357,7 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
                         retry=False,
                         **kwargs,
                     )
-                except ClientError as exc:
+                except (ClientError, SkybellException) as exc:
                     raise SkybellException from exc
             raise SkybellException from ex
         try:
@@ -374,13 +365,7 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
                 local_response = await client_response.json()
             else:
                 local_response = await client_response.read()
-        except TypeError as ex:
-            raise SkybellRequestException from ex
-        except ValueError as ex:
-            raise SkybellRequestException from ex
-        except ClientError as ex:
-            raise SkybellRequestException from ex
-        except RuntimeError as ex:
+        except (ContentTypeError, TypeError, ValueError, ClientError, RuntimeError) as ex:
             raise SkybellRequestException from ex
         # Now we have a local response which could be
         # a json dictionary or byte stream

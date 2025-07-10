@@ -6,10 +6,11 @@ Tests the device initialization and attributes of the Skybell device class.
 """
 import os
 from asyncio.exceptions import TimeoutError as Timeout
-from datetime import datetime
+from datetime import datetime, timedelta
 from unittest.mock import patch
 
 import pytest
+import aiofiles
 from aiohttp import ClientConnectorError
 from aresponses import ResponsesMockServer
 from freezegun.api import FrozenDateTimeFactory
@@ -17,6 +18,7 @@ from freezegun.api import FrozenDateTimeFactory
 from aioskybell import Skybell, exceptions
 from aioskybell.device import SkybellDevice
 from aioskybell.helpers import const as CONST
+from aioskybell import utils as UTILS
 from tests import EMAIL, PASSWORD, load_fixture
 
 
@@ -62,6 +64,20 @@ def user_response(aresponses: ResponsesMockServer) -> None:
     )
 
 
+def failed_user_response(aresponses: ResponsesMockServer) -> None:
+    """Generate login response."""
+    aresponses.add(
+        "api.skybell.network",
+        "/api/v5/user/",
+        "GET",
+        aresponses.Response(
+            status=500,
+            headers={"Content-Type": "application/json"},
+            text=load_fixture("user.json"),
+        ),
+    )
+
+
 def failed_login_response(aresponses: ResponsesMockServer) -> None:
     """Generate failed login response."""
     aresponses.add(
@@ -71,7 +87,21 @@ def failed_login_response(aresponses: ResponsesMockServer) -> None:
         aresponses.Response(
             status=403,
             headers={"Content-Type": "application/json"},
-            text=load_fixture("403.json"),
+            text=load_fixture("failure_status.json"),
+        ),
+    )
+
+
+def failed_content_login_response(aresponses: ResponsesMockServer) -> None:
+    """Generate failed login response."""
+    aresponses.add(
+        "api.skybell.network",
+        "/api/v5/login/",
+        "POST",
+        aresponses.Response(
+            status=200,
+            headers={"Content-Type": "application/json"},
+            text=load_fixture("failure_status.txt"),
         ),
     )
 
@@ -84,6 +114,34 @@ def devices_response(aresponses: ResponsesMockServer) -> None:
         "GET",
         aresponses.Response(
             status=200,
+            headers={"Content-Type": "application/json"},
+            text=load_fixture("devices.json"),
+        ),
+    )
+
+
+def failed_resource_devices_response(aresponses: ResponsesMockServer) -> None:
+    """Generate devices response."""
+    aresponses.add(
+        "api.skybell.network",
+        "/api/v5/devices/",
+        "GET",
+        aresponses.Response(
+            status=403,
+            headers={"Content-Type": "application/json"},
+            text=load_fixture("devices.json"),
+        ),
+    )
+
+
+def failed_request_devices_response(aresponses: ResponsesMockServer) -> None:
+    """Generate devices response."""
+    aresponses.add(
+        "api.skybell.network",
+        "/api/v5/devices/",
+        "GET",
+        aresponses.Response(
+            status=400,
             headers={"Content-Type": "application/json"},
             text=load_fixture("devices.json"),
         ),
@@ -129,6 +187,21 @@ def activities_response(aresponses: ResponsesMockServer, device: str) -> None:
         "GET",
         aresponses.Response(
             status=200,
+            headers={"Content-Type": "application/json"},
+            text=load_fixture("device_activities.json"),
+        ),
+        match_querystring=True,
+    )
+
+def failed_activities_response(aresponses: ResponsesMockServer, device: str) -> None:
+    """Generate snapshot response."""
+    path = f"/api/v5/activity?device_id={device}"
+    aresponses.add(
+        "api.skybell.network",
+        path,
+        "GET",
+        aresponses.Response(
+            status=403,
             headers={"Content-Type": "application/json"},
             text=load_fixture("device_activities.json"),
         ),
@@ -221,14 +294,20 @@ async def test_loop() -> None:
 
 
 @pytest.mark.asyncio
-async def test_failed_login(aresponses: ResponsesMockServer) -> None:
-    """Test faild_login."""
+async def test_async_failed_login(aresponses: ResponsesMockServer) -> None:
+    """Test failed_login."""
     failed_login_response(aresponses)
     client = Skybell(
         EMAIL, "password", auto_login=False, get_devices=False, login_sleep=False
     )
     with pytest.raises(exceptions.SkybellAuthenticationException):
         await client.async_login()
+
+    # Test a failed login when sending another request
+    failed_login_response(aresponses)
+    await client.async_update_cache({CONST.AUTHENTICATION_RESULT: {}})
+    with pytest.raises(exceptions.SkybellAuthenticationException):
+        await client.async_send_request(CONST.USER_URL)
     await client.async_logout()
 
     # Test No password
@@ -239,6 +318,58 @@ async def test_failed_login(aresponses: ResponsesMockServer) -> None:
         await client.async_login()
     await client.async_logout()
 
+    # Test wrong content type
+    failed_content_login_response(aresponses)
+    with pytest.raises(exceptions.SkybellRequestException):
+        client = Skybell(
+            EMAIL, PASSWORD, auto_login=False, get_devices=False, login_sleep=False
+        )
+        await client.async_login()
+    await client.async_logout()
+
+    os.remove(client._cache_path)
+    assert not aresponses.assert_no_unused_routes()
+
+
+@pytest.mark.asyncio
+async def test_async_failed_request(aresponses: ResponsesMockServer) -> None:
+    """Test failed request, failed resource request and retry login."""
+
+    client = Skybell(
+        EMAIL, PASSWORD, auto_login=True, get_devices=True, login_sleep=False
+    )
+
+    # Test failed resource and failed request
+    login_response(aresponses)
+    user_response(aresponses)
+    failed_resource_devices_response(aresponses)
+    with pytest.raises(exceptions.SkybellUnknownResourceException):
+        await client.async_initialize()
+    login_response(aresponses)
+    user_response(aresponses)
+    failed_request_devices_response(aresponses)
+    with pytest.raises(exceptions.SkybellRequestException):
+        await client.async_initialize()
+
+    # Test retry on fail
+    failed_user_response(aresponses)
+    login_response(aresponses)
+    with pytest.raises(exceptions.SkybellException):
+        await client.async_send_request(
+            url=CONST.USER_URL,
+            retry=True
+        )
+
+    # Test no retry on fail
+    failed_user_response(aresponses)
+    with pytest.raises(exceptions.SkybellException):
+        await client.async_send_request(
+            url=CONST.USER_URL,
+            retry=False
+        )
+
+
+    await client.async_logout()
     os.remove(client._cache_path)
     assert not aresponses.assert_no_unused_routes()
 
@@ -247,15 +378,20 @@ async def test_failed_login(aresponses: ResponsesMockServer) -> None:
 async def test_async_initialize_and_logout(aresponses: ResponsesMockServer) -> None:
     """Test ;login initializing and logout."""
 
-    # Test login parameters
+    # Login
     login_response(aresponses)
     client = Skybell(
-        EMAIL, PASSWORD, auto_login=False, get_devices=False, login_sleep=False
+        EMAIL, PASSWORD, auto_login=False, get_devices=False, login_sleep=True
     )
-    result = await client.async_login(username=EMAIL, password=PASSWORD)
-    await client.async_logout()
-    assert result is True
+    await client.async_login(username=EMAIL, password=PASSWORD)
 
+    # Test refresh session cache token
+    auth = client._cache[CONST.AUTHENTICATION_RESULT]
+    auth[CONST.REFRESH_TOKEN] = ""
+    with pytest.raises(exceptions.SkybellAuthenticationException):
+        await client.async_refresh_session()
+
+    await client.async_logout()
     # Test initializing and logout.
     client = Skybell(
         EMAIL, PASSWORD, auto_login=True, get_devices=True, login_sleep=False
@@ -287,6 +423,12 @@ async def test_async_initialize_and_logout(aresponses: ResponsesMockServer) -> N
     assert isinstance(ar["ExpirationDate"], datetime)
     assert isinstance(client.session_refresh_timestamp, datetime)
 
+    # Test get_devices where device does exist
+    del client._devices["012345670123456789abcdef"]
+    devices_response(aresponses)
+    await client.async_get_devices(refresh=True)
+    assert isinstance(client._devices["012345670123456789abcdef"], SkybellDevice)
+
     # Test the session logout
     assert await client.async_logout() is True
     assert not client._devices
@@ -304,10 +446,10 @@ async def test_async_get_devices(
 ) -> None:
     """Test getting devices."""
     freezer.move_to("2023-03-30 13:33:00+00:00")
-    login_response(aresponses)
-    devices_response(aresponses)
 
     # Test the Get Device and device specific attributes
+    login_response(aresponses)
+    devices_response(aresponses)
     data = await client.async_get_device("012345670123456789abcdef", refresh=True)
     assert isinstance(data, SkybellDevice)
     device = client._devices["012345670123456789abcdef"]
@@ -419,6 +561,23 @@ async def test_async_get_devices(
     assert device.pir_sensitivity == 524
     assert settings["image_quality"] == 0
     assert device.image_quality == 0
+
+    # Test get devices when device exists
+    devices_response(aresponses)
+    snapshot_response(aresponses, device.device_id)
+    activities_response(aresponses, device.device_id)
+    query = "&start=1751732390135&end=1751732392135&nopreviews=0"
+    activities_image_response(aresponses, device.device_id, query)
+    await client.async_get_devices(refresh=True)
+    assert device._device_json["device_id"] == "012345670123456789abcdef"
+
+    # Test get device refresh when device exists
+    snapshot_response(aresponses, device.device_id)
+    activities_response(aresponses, device.device_id)
+    query = "&start=1751732390135&end=1751732392135&nopreviews=0"
+    activities_image_response(aresponses, device.device_id, query)
+    await client.async_get_device(device_id="012345670123456789abcdef", refresh=True)
+    assert device._device_json["device_id"] == "012345670123456789abcdef"
 
     assert aresponses.assert_no_unused_routes() is None
 
@@ -748,8 +907,10 @@ async def test_async_delete_activity(
 async def test_cache(
     aresponses: ResponsesMockServer,
     client: Skybell,
+    freezer: FrozenDateTimeFactory
 ) -> None:
     """Test cache."""
+    freezer.move_to("2023-03-30 13:33:00+00:00")
 
     login_response(aresponses)
     user_response(aresponses)
@@ -763,6 +924,29 @@ async def test_cache(
 
     # Test that the cache file has content
     assert os.path.getsize(client._cache_path) > 0
+
+    # Test loading an empty cache
+    old_cache = client._cache
+    async with aiofiles.open(client._cache_path, "wb") as file:
+        await file.close()
+    await client._async_load_cache()
+    assert os.path.exists(client._cache_path) is True
+    assert client._cache == old_cache
+
+    # Test the delete cache
+    old_cache_path = client._cache_path
+    await client.async_delete_cache()
+    assert os.path.exists(old_cache_path) is False
+
+    # Test the expires in min to the expires in
+    ts = UTILS.calculate_expiration(
+        expires_in=1, slack=0, refresh_cycle=CONST.REFRESH_CYCLE)
+    ex_ts = datetime.now() + timedelta(seconds=1)
+    assert ts == ex_ts
+
+    # Test coverage: update something other than a dictionary
+    result = UTILS.update(dct=[], dct_merge={})
+    assert isinstance(result, dict) is False
 
 
 @pytest.mark.asyncio
