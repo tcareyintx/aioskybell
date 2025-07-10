@@ -120,6 +120,20 @@ def devices_response(aresponses: ResponsesMockServer) -> None:
     )
 
 
+def devices_readonly_response(aresponses: ResponsesMockServer) -> None:
+    """Generate devices response."""
+    aresponses.add(
+        "api.skybell.network",
+        "/api/v5/devices/",
+        "GET",
+        aresponses.Response(
+            status=200,
+            headers={"Content-Type": "application/json"},
+            text=load_fixture("devices_readonly.json"),
+        ),
+    )
+
+
 def failed_resource_devices_response(aresponses: ResponsesMockServer) -> None:
     """Generate devices response."""
     aresponses.add(
@@ -159,6 +173,21 @@ def device_response(aresponses: ResponsesMockServer, device: str) -> None:
             status=200,
             headers={"Content-Type": "application/json"},
             text=load_fixture("device.json"),
+        ),
+    )
+
+
+def device_readonly_response(aresponses: ResponsesMockServer, device: str) -> None:
+    """Generate devices response."""
+    path = f"/api/v5/devices/{device}/"
+    aresponses.add(
+        "api.skybell.network",
+        path,
+        "GET",
+        aresponses.Response(
+            status=200,
+            headers={"Content-Type": "application/json"},
+            text=load_fixture("device_readonly.json"),
         ),
     )
 
@@ -237,9 +266,25 @@ def device_settings_response(aresponses: ResponsesMockServer, device: str) -> No
         aresponses.Response(
             status=200,
             headers={"Content-Type": "application/json"},
-            text=load_fixture("device-settings.json"),
+            text=load_fixture("device_settings.json"),
         ),
     )
+
+
+def device_settings_led_false_response(aresponses: ResponsesMockServer, device: str) -> None:
+    """Generate device settings response."""
+    path = f"/api/v5/devices/{device}/settings/"
+    aresponses.add(
+        "api.skybell.network",
+        path,
+        "POST",
+        aresponses.Response(
+            status=200,
+            headers={"Content-Type": "application/json"},
+            text=load_fixture("device_settings_led_false.json"),
+        ),
+    )
+
 
 
 def download_video_url_response(aresponses: ResponsesMockServer, video_id: str) -> None:
@@ -367,7 +412,6 @@ async def test_async_failed_request(aresponses: ResponsesMockServer) -> None:
             url=CONST.USER_URL,
             retry=False
         )
-
 
     await client.async_logout()
     os.remove(client._cache_path)
@@ -689,6 +733,11 @@ async def test_async_change_setting(
     assert settings["led_color"] == "#00ff00"
 
     device_settings_response(aresponses, device.device_id)
+    await device.async_set_setting("normal_led", True)
+    settings = device._device_json["settings"]
+    assert settings["led_color"] == "#00ff00"
+
+    device_settings_response(aresponses, device.device_id)
     await device.async_set_setting("indoor_chime", True)
     settings = device._device_json["settings"]
     assert settings["indoor_chime"] is True
@@ -766,6 +815,9 @@ async def test_async_change_setting(
 
     # Check the booleans
     with pytest.raises(exceptions.SkybellException):
+        await device.async_set_setting(CONST.NORMAL_LED, 4)
+
+    with pytest.raises(exceptions.SkybellException):
         await device.async_set_setting(CONST.INDOOR_CHIME, 4)
 
     with pytest.raises(exceptions.SkybellException):
@@ -819,6 +871,44 @@ async def test_async_change_setting(
     with pytest.raises(exceptions.SkybellException):
         await device.async_set_setting(CONST.TIMEZONE_INFO, tz_dict)
 
+    # Tests for LED Enable = False
+    # Test for False when LED COLOR exists
+    device_settings_led_false_response(aresponses, device.device_id)
+    await device.async_set_setting("normal_led", False)
+    settings = device._device_json["settings"]
+    assert settings["led_color"] == ""
+
+    # Test for True when LED COLOR empty
+    device_settings_response(aresponses, device.device_id)
+    await device.async_set_setting("normal_led", True)
+    settings = device._device_json["settings"]
+    assert settings["led_color"] == "#00ff00"
+
+    os.remove(client._cache_path)
+    assert aresponses.assert_no_unused_routes() is None
+
+
+@pytest.mark.asyncio
+async def test_async_shared(
+    aresponses: ResponsesMockServer, client: Skybell
+) -> None:
+    """Test changing settings on device."""
+
+    login_response(aresponses)
+    devices_readonly_response(aresponses)
+    data = await client.async_get_devices()
+    device = data[0]
+    assert device._device_json[CONST.SHARED] is True
+    assert device._device_json[CONST.SHARED_READ_ONLY] is True
+
+    # Test the settings against read-only
+    with pytest.raises(exceptions.SkybellAccessControlException):
+        await device.async_set_setting("name", "FrontDoor")
+
+    # Test the delete activity
+    with pytest.raises(exceptions.SkybellAccessControlException):
+        await device.async_delete_activity(activity_id="any")
+
     os.remove(client._cache_path)
     assert aresponses.assert_no_unused_routes() is None
 
@@ -855,12 +945,36 @@ async def test_async_get_activity_video_url(
         download_url == "https://skybell-gen5-video.s3.us-east-2.amazonaws.com/video-id"
     )
 
+    # Get video url associated for latest activity
+    act = device.latest()
+    video_id = act[CONST.VIDEO_URL]
+    download_video_url_response(aresponses, video_id=video_id)
+    download_url = await device.async_get_activity_video_url(video=None)
+    assert (
+        download_url == "https://skybell-gen5-video.s3.us-east-2.amazonaws.com/video-id"
+    )
+
     # Download the video ( and cleanup file)
     activity_id = act[CONST.ACTIVITY_ID]
     delete_activity_response(aresponses, activity_id)
     download_video_url_response(aresponses, video_id=video_id)
     get_video_response(aresponses, "/video-id")
-    await device.async_download_videos(video=download_url, delete=True)
+    await device.async_download_videos(video=video_id, delete=True)
+    path = client._cache_path[:-7]
+    file = f"{path}_{act[CONST.EVENT_TIME]}.mp4"
+    assert os.path.exists(file) is True
+    if os.path.exists(file):
+        os.remove(file)
+
+    # Download the video from activities ( and cleanup file)
+    activities = device.activities(limit=1)
+    act = activities[0]
+    activity_id = act[CONST.ACTIVITY_ID]
+    video_id = act[CONST.VIDEO_URL]
+    delete_activity_response(aresponses, activity_id)
+    download_video_url_response(aresponses, video_id=video_id)
+    get_video_response(aresponses, "/video-id")
+    await device.async_download_videos(video=None, limit=1, delete=True)
     path = client._cache_path[:-7]
     file = f"{path}_{act[CONST.EVENT_TIME]}.mp4"
     assert os.path.exists(file) is True

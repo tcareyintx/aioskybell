@@ -117,9 +117,7 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
 
         # Update the selected events from the activity list.
         await self._async_update_events()
-
-        act = self.latest()
-        await self._async_update_activity_image(act)
+        await self._async_update_activity_image(activity = None)
 
     async def _async_update_activity_image(self, activity: ActivityData | None) -> None:
         """Update images for an activity.
@@ -196,6 +194,8 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
             if not isinstance(value, bool):
                 raise SkybellException(self, value)
             key = CONST.LED_COLOR
+            # If the Normal LED value is True - use the color
+            # else clear the color
             if value:
                 value = self.led_color
                 if not value:
@@ -249,12 +249,13 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
             activity = self.latest()
             video = activity.get(CONST.VIDEO_URL, "")
 
-        if not video:
-            return ""
+        result = ""
+        if video:
+            act_url = CONST.ACTIVITY_VIDEO_URL + video
+            response = await self._skybell.async_send_request(act_url)
+            result = response.get(CONST.DOWNLOAD_URL, "")
 
-        act_url = CONST.ACTIVITY_VIDEO_URL + video
-        response = await self._skybell.async_send_request(act_url)
-        return response.get(CONST.DOWNLOAD_URL, "")
+        return result
 
     async def async_download_videos(
         self,
@@ -267,8 +268,8 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
 
         path (optional): path to save the videos.
             If path is not passed, use the path to the cache.
-        video (optional): video url is passed use that url
-            If video url is not passed download the videos from the
+        video (optional): activities video url is passed use that url
+            If activities video url is not passed download the videos from the
             activities as specified in the limit.
         if requested, delete the activity after saving the video.
         """
@@ -303,7 +304,7 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
         if self.is_readonly:
             _LOGGER.warning("Exception deleting activity with read-only scope.")
             raise SkybellAccessControlException(
-                self, "Attempted setting with read-only scope."
+                self, "Attempted delete activity with read-only scope."
             )
 
         act_url = str.replace(CONST.ACTIVITY_URL, "$ACTID$", activity_id)
