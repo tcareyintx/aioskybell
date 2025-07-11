@@ -29,7 +29,8 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 
-class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instance-attributes
+class SkybellDevice:
+    # pylint:disable=too-many-public-methods, too-many-instance-attributes
     """Class to represent each Skybell device."""
 
     _skybell: Skybell
@@ -117,7 +118,7 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
 
         # Update the selected events from the activity list.
         await self._async_update_events()
-        await self._async_update_activity_image(activity = None)
+        await self._async_update_activity_image(activity=None)
 
     async def _async_update_activity_image(self, activity: ActivityData | None) -> None:
         """Update images for an activity.
@@ -127,19 +128,20 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
         if activity is None:
             activity = self.latest()
 
-        act_id = activity[CONST.ACTIVITY_ID]
-        act_time = activity[CONST.EVENT_TIME]
-        start_time = act_time - 1000
-        end_time = act_time + 1000
-        image = b""
-
-        query = f"&start={start_time}&end={end_time}&nopreviews=0"
-        act_list = await self._async_activities_request(query=query)
-        for act in act_list:
-            if act[CONST.ACTIVITY_ID] == act_id:
-                image = act[CONST.IMAGE]
-
-        self.images[CONST.ACTIVITY] = b64decode(image)
+        if activity:
+            act_id = activity[CONST.ACTIVITY_ID]
+            act_time = activity[CONST.EVENT_TIME]
+            start_time = act_time - 1000
+            end_time = act_time + 1000
+            image = b""
+    
+            query = f"&start={start_time}&end={end_time}&nopreviews=0"
+            act_list = await self._async_activities_request(query=query)
+            for act in act_list:
+                if act[CONST.ACTIVITY_ID] == act_id:
+                    image = act[CONST.IMAGE]
+    
+            self.images[CONST.ACTIVITY] = b64decode(image)
 
     async def _async_update_events(
         self, activities: list[ActivityData] | None = None
@@ -496,19 +498,21 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
         """
         telemetry = self._device_json.get(CONST.DEVICE_TELEMETRY, {})
         tss = telemetry.get(CONST.DEVICE_LAST_SEEN, None)
+        ts = None
         if tss is None:
-            tss = self.last_connected
-        try:
-            ts = datetime.fromisoformat(tss)
-        except ValueError:
-            ts = None
+            ts = self.last_connected
+        if ts is None:
+            try:
+                ts = datetime.fromisoformat(tss)
+            except ValueError:
+                ts = None
         return ts
 
     @property
     def latest_doorbell_event_time(self) -> datetime | None:
         """Get lastest doorbell event."""
         act = self.latest(event_type=CONST.DOORBELL_ACTIVITY)
-        if act is not None:
+        if act:
             act_time = act.get(CONST.EVENT_TIME, None)
             if act_time is not None:
                 # Event time is a js unix format needs adapted to unix time.
@@ -521,7 +525,7 @@ class SkybellDevice:  # pylint:disable=too-many-public-methods, too-many-instanc
     def latest_motion_event_time(self) -> datetime | None:
         """Get lastest motion event."""
         act = self.latest(event_type=CONST.MOTION_ACTIVITY)
-        if act is not None:
+        if act:
             act_time = act.get(CONST.EVENT_TIME, None)
             if act_time is not None:
                 # Event time is a js unix format needs adapted to unix time.

@@ -1,4 +1,4 @@
-# pylint:disable=line-too-long, protected-access, too-many-statements
+# pylint:disable=protected-access, too-many-statements
 """
 Test Skybell device functionality.
 
@@ -222,6 +222,7 @@ def activities_response(aresponses: ResponsesMockServer, device: str) -> None:
         match_querystring=True,
     )
 
+
 def failed_activities_response(aresponses: ResponsesMockServer, device: str) -> None:
     """Generate snapshot response."""
     path = f"/api/v5/activity?device_id={device}"
@@ -271,7 +272,10 @@ def device_settings_response(aresponses: ResponsesMockServer, device: str) -> No
     )
 
 
-def device_settings_led_false_response(aresponses: ResponsesMockServer, device: str) -> None:
+def device_settings_led_false_response(
+        aresponses: ResponsesMockServer,
+        device: str
+) -> None:
     """Generate device settings response."""
     path = f"/api/v5/devices/{device}/settings/"
     aresponses.add(
@@ -284,7 +288,6 @@ def device_settings_led_false_response(aresponses: ResponsesMockServer, device: 
             text=load_fixture("device_settings_led_false.json"),
         ),
     )
-
 
 
 def download_video_url_response(aresponses: ResponsesMockServer, video_id: str) -> None:
@@ -861,6 +864,18 @@ async def test_async_change_setting(
     with pytest.raises(exceptions.SkybellException):
         await device.async_set_setting(CONST.BASIC_MOTION, motion_dict)
 
+    # Validate the basic motion fields are boolean
+    motion_dict = {
+        CONST.BASIC_MOTION_NOTIFY: 4,
+        CONST.BASIC_MOTION_RECORD: True,
+        CONST.BASIC_MOTION_FD_NOTIFY: True,
+        CONST.BASIC_MOTION_FD_RECORD: True,
+        CONST.BASIC_MOTION_HBD_NOTIFY: True,
+        CONST.BASIC_MOTION_HBD_RECORD: True,
+    }
+    with pytest.raises(exceptions.SkybellException):
+        await device.async_set_setting(CONST.BASIC_MOTION, motion_dict)
+
     # Validate the time zone fields
     tz_dict = {
         CONST.LOCATION_LAT: 1.0,
@@ -870,6 +885,77 @@ async def test_async_change_setting(
     }
     with pytest.raises(exceptions.SkybellException):
         await device.async_set_setting(CONST.TIMEZONE_INFO, tz_dict)
+
+    # Validate lat and long are floats
+    tz_dict = {
+        CONST.LOCATION_LAT: False,
+        CONST.LOCATION_LON: -1.0,
+        CONST.LOCATION_PLACE: "Anywhere",
+    }
+    with pytest.raises(exceptions.SkybellException):
+        await device.async_set_setting(CONST.TIMEZONE_INFO, tz_dict)
+
+    # Validate place is a string
+    tz_dict = {
+        CONST.LOCATION_LAT: 1.0,
+        CONST.LOCATION_LON: -1.0,
+        CONST.LOCATION_PLACE: False,
+    }
+    with pytest.raises(exceptions.SkybellException):
+        await device.async_set_setting(CONST.TIMEZONE_INFO, tz_dict)
+
+    # Test that PIR sensitivity is an integer
+    with pytest.raises(exceptions.SkybellException):
+        await device.async_set_setting(CONST.MOTION_PIR_SENSITIVITY, "str")
+
+    # Test that HMBD sensitivity is an integer
+    with pytest.raises(exceptions.SkybellException):
+        await device.async_set_setting(CONST.MOTION_HMBD_SENSITIVITY, "str")
+
+    # Test the timestamp public exceptions
+    old = device._device_json[CONST.LAST_CONNECTED]
+    device._device_json[CONST.LAST_CONNECTED] = None
+    assert device.last_connected is None
+    device._device_json[CONST.LAST_CONNECTED] = ""
+    assert device.last_connected is None
+    device._device_json[CONST.LAST_CONNECTED] = old
+
+    old = device._device_json[CONST.LAST_DISCONNECTED]
+    device._device_json[CONST.LAST_DISCONNECTED] = None
+    assert device.last_disconnected is None
+    device._device_json[CONST.LAST_DISCONNECTED] = ""
+    assert device.last_disconnected is None
+    device._device_json[CONST.LAST_DISCONNECTED] = old
+
+    telemetry = device._device_json[CONST.DEVICE_TELEMETRY]
+    old = telemetry[CONST.DEVICE_LAST_SEEN]
+    telemetry[CONST.DEVICE_LAST_SEEN] = None
+    assert isinstance(device.last_seen, datetime)
+    telemetry[CONST.DEVICE_LAST_SEEN] = ""
+    assert device.last_seen is None
+    telemetry[CONST.DEVICE_LAST_SEEN] = old
+
+    # Test the last doorbell and motion event time
+    old = device._events[CONST.DOORBELL_ACTIVITY]
+    del device._events[CONST.DOORBELL_ACTIVITY]
+    assert device.latest_doorbell_event_time is None
+    device._events[CONST.DOORBELL_ACTIVITY] = old
+    ts = device.latest_doorbell_event_time
+    assert isinstance(ts, datetime)
+
+    old = device._events[CONST.MOTION_ACTIVITY]
+    del device._events[CONST.MOTION_ACTIVITY]
+    assert device.latest_motion_event_time is None
+    device._events[CONST.MOTION_ACTIVITY] = old
+    ts = device.latest_motion_event_time
+    assert isinstance(ts, datetime)
+
+    # Test to get the SSID from alternate attribute
+    telemetry = device._device_json[CONST.DEVICE_TELEMETRY]
+    old = telemetry[CONST.WIFI_SSID]
+    del telemetry[CONST.WIFI_SSID]
+    assert device.wifi_ssid == "SSID"
+    telemetry[CONST.WIFI_SSID] = old
 
     # Tests for LED Enable = False
     # Test for False when LED COLOR exists
@@ -883,6 +969,23 @@ async def test_async_change_setting(
     await device.async_set_setting("normal_led", True)
     settings = device._device_json["settings"]
     assert settings["led_color"] == "#00ff00"
+
+    # Test if the normal led is on
+    assert device.normal_led_is_on is True
+
+    # Test for Motion detection fields when motion detection is False
+    motion_dict = {
+        CONST.BASIC_MOTION_NOTIFY: True,
+        CONST.BASIC_MOTION_RECORD: True,
+        CONST.BASIC_MOTION_FD_NOTIFY: True,
+        CONST.BASIC_MOTION_FD_RECORD: True,
+        CONST.BASIC_MOTION_HBD_NOTIFY: True,
+        CONST.BASIC_MOTION_HBD_RECORD: True,
+    }
+    settings = device._device_json[CONST.SETTINGS]
+    settings[CONST.MOTION_DETECTION] = False
+    with pytest.raises(exceptions.SkybellException):
+        await device.async_set_setting(CONST.BASIC_MOTION, motion_dict)
 
     os.remove(client._cache_path)
     assert aresponses.assert_no_unused_routes() is None
