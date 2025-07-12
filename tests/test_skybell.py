@@ -1,4 +1,4 @@
-# pylint:disable=protected-access, too-many-statements
+# pylint:disable=protected-access, too-many-statements, too-many-lines
 """
 Test Skybell device functionality.
 
@@ -9,16 +9,16 @@ from asyncio.exceptions import TimeoutError as Timeout
 from datetime import datetime, timedelta
 from unittest.mock import patch
 
-import pytest
 import aiofiles
+import pytest
 from aiohttp import ClientConnectorError
 from aresponses import ResponsesMockServer
 from freezegun.api import FrozenDateTimeFactory
 
 from aioskybell import Skybell, exceptions
+from aioskybell import utils as UTILS
 from aioskybell.device import SkybellDevice
 from aioskybell.helpers import const as CONST
-from aioskybell import utils as UTILS
 from tests import EMAIL, PASSWORD, load_fixture
 
 
@@ -273,8 +273,7 @@ def device_settings_response(aresponses: ResponsesMockServer, device: str) -> No
 
 
 def device_settings_led_false_response(
-        aresponses: ResponsesMockServer,
-        device: str
+    aresponses: ResponsesMockServer, device: str
 ) -> None:
     """Generate device settings response."""
     path = f"/api/v5/devices/{device}/settings/"
@@ -403,18 +402,12 @@ async def test_async_failed_request(aresponses: ResponsesMockServer) -> None:
     failed_user_response(aresponses)
     login_response(aresponses)
     with pytest.raises(exceptions.SkybellException):
-        await client.async_send_request(
-            url=CONST.USER_URL,
-            retry=True
-        )
+        await client.async_send_request(url=CONST.USER_URL, retry=True)
 
     # Test no retry on fail
     failed_user_response(aresponses)
     with pytest.raises(exceptions.SkybellException):
-        await client.async_send_request(
-            url=CONST.USER_URL,
-            retry=False
-        )
+        await client.async_send_request(url=CONST.USER_URL, retry=False)
 
     await client.async_logout()
     os.remove(client._cache_path)
@@ -999,9 +992,7 @@ async def test_async_change_setting(
 
 
 @pytest.mark.asyncio
-async def test_async_shared(
-    aresponses: ResponsesMockServer, client: Skybell
-) -> None:
+async def test_async_shared(aresponses: ResponsesMockServer, client: Skybell) -> None:
     """Test changing settings on device."""
 
     login_response(aresponses)
@@ -1129,9 +1120,7 @@ async def test_async_delete_activity(
 
 @pytest.mark.asyncio
 async def test_cache(
-    aresponses: ResponsesMockServer,
-    client: Skybell,
-    freezer: FrozenDateTimeFactory
+    aresponses: ResponsesMockServer, client: Skybell, freezer: FrozenDateTimeFactory
 ) -> None:
     """Test cache."""
     freezer.move_to("2023-03-30 13:33:00+00:00")
@@ -1164,7 +1153,8 @@ async def test_cache(
 
     # Test the expires in min to the expires in
     ts = UTILS.calculate_expiration(
-        expires_in=1, slack=0, refresh_cycle=CONST.REFRESH_CYCLE)
+        expires_in=1, slack=0, refresh_cycle=CONST.REFRESH_CYCLE
+    )
     ex_ts = datetime.now() + timedelta(seconds=1)
     assert ts == ex_ts
 

@@ -134,13 +134,13 @@ class SkybellDevice:
             start_time = act_time - 1000
             end_time = act_time + 1000
             image = b""
-    
+
             query = f"&start={start_time}&end={end_time}&nopreviews=0"
             act_list = await self._async_activities_request(query=query)
             for act in act_list:
                 if act[CONST.ACTIVITY_ID] == act_id:
                     image = act[CONST.IMAGE]
-    
+
             self.images[CONST.ACTIVITY] = b64decode(image)
 
     async def _async_update_events(

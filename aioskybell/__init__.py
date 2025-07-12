@@ -18,10 +18,11 @@ from datetime import datetime
 from typing import Any, cast
 
 from aiohttp.client import ClientSession, ClientTimeout
-from aiohttp.client_exceptions import (ContentTypeError,
-                                       ClientConnectorError,
-                                       ClientError
-                                       )
+from aiohttp.client_exceptions import (
+    ClientConnectorError,
+    ClientError,
+    ContentTypeError,
+)
 
 from . import utils as UTILS
 from .device import SkybellDevice
@@ -369,8 +370,13 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
                 local_response = await client_response.json()
             else:
                 local_response = await client_response.read()
-        except (ContentTypeError, TypeError, ValueError, ClientError, RuntimeError)\
-                as ex:
+        except (
+            ContentTypeError,
+            TypeError,
+            ValueError,
+            ClientError,
+            RuntimeError,
+        ) as ex:
             raise SkybellRequestException from ex
         # Now we have a local response which could be
         # a json dictionary or byte stream
