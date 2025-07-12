@@ -950,6 +950,13 @@ async def test_async_change_setting(
     ts = device.latest_motion_event_time
     assert isinstance(ts, datetime)
 
+    old = device._events[CONST.LIVESTREAM_ACTIVITY]
+    del device._events[CONST.LIVESTREAM_ACTIVITY]
+    assert device.latest_livestream_event_time is None
+    device._events[CONST.LIVESTREAM_ACTIVITY] = old
+    ts = device.latest_livestream_event_time
+    assert isinstance(ts, datetime)
+
     # Test to get the SSID from alternate attribute
     telemetry = device._device_json[CONST.DEVICE_TELEMETRY]
     old = telemetry[CONST.WIFI_SSID]
@@ -1113,8 +1120,8 @@ async def test_async_delete_activity(
     activity_id = act[CONST.ACTIVITY_ID]
     delete_activity_response(aresponses, activity_id)
     await device.async_delete_activity(activity_id=activity_id)
-    assert len(device._activities) == 1
-    assert len(device._events) == 1
+    assert len(device._activities) == 2
+    assert len(device._events) == 2
 
     os.remove(client._cache_path)
     assert not aresponses.assert_no_unused_routes()
@@ -1134,7 +1141,7 @@ async def test_cache(
     devices_response(aresponses)
     # Create the cache file
     if os.path.exists(client._cache_path):
-        await os.remove(client._cache_path)
+        os.remove(client._cache_path)
 
     # Load the cache and write to the file
     await client.async_initialize()

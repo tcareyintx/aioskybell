@@ -145,6 +145,7 @@ VIDEO_READY = "video_ready"
 DOWNLOAD_URL = "download_url"
 DOORBELL_ACTIVITY = "doorbell"
 MOTION_ACTIVITY = "motion"
+LIVESTREAM_ACTIVITY = "lstream"
 
 # DEVUCE IMAGE SNAPSHOT
 SNAPSHOT = "avatar"

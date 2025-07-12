@@ -510,7 +510,7 @@ class SkybellDevice:
 
     @property
     def latest_doorbell_event_time(self) -> datetime | None:
-        """Get lastest doorbell event."""
+        """Get latest doorbell event."""
         act = self.latest(event_type=CONST.DOORBELL_ACTIVITY)
         if act:
             act_time = act.get(CONST.EVENT_TIME, None)
@@ -522,8 +522,21 @@ class SkybellDevice:
         return act_time
 
     @property
+    def latest_livestream_event_time(self) -> datetime | None:
+        """Get latest livestream event."""
+        act = self.latest(event_type=CONST.LIVESTREAM_ACTIVITY)
+        if act:
+            act_time = act.get(CONST.EVENT_TIME, None)
+            if act_time is not None:
+                # Event time is a js unix format needs adapted to unix time.
+                act_time = datetime.fromtimestamp(act_time / 1000, tz=timezone.utc)
+        else:
+            act_time = None
+        return act_time
+
+    @property
     def latest_motion_event_time(self) -> datetime | None:
-        """Get lastest motion event."""
+        """Get latest motion event."""
         act = self.latest(event_type=CONST.MOTION_ACTIVITY)
         if act:
             act_time = act.get(CONST.EVENT_TIME, None)
