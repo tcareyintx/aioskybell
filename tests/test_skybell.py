@@ -290,7 +290,7 @@ def device_settings_led_false_response(
 
 
 def download_video_url_response(aresponses: ResponsesMockServer, video_id: str) -> None:
-    """Generate device settings response."""
+    """Generate download video url response."""
     path = f"/api/v5{video_id}"
     aresponses.add(
         "api.skybell.network",
@@ -305,7 +305,7 @@ def download_video_url_response(aresponses: ResponsesMockServer, video_id: str) 
 
 
 def delete_activity_response(aresponses: ResponsesMockServer, activity: str) -> None:
-    """Generate device settings response."""
+    """Generate delete activity response."""
     path = f"/api/v5/activity/{activity}"
     aresponses.add(
         "api.skybell.network",
@@ -320,13 +320,58 @@ def delete_activity_response(aresponses: ResponsesMockServer, activity: str) -> 
 
 
 def get_video_response(aresponses: ResponsesMockServer, video: str) -> None:
-    """Generate device settings response."""
+    """Generate video response."""
     aresponses.add(
         "skybell-gen5-video.s3.us-east-2.amazonaws.com",
         video,
         "GET",
         aresponses.Response(
             status=200, headers={"Content-Type": "binary/octet-stream"}, body=bytes(2)
+        ),
+    )
+
+
+def start_livestream_response(aresponses: ResponsesMockServer, device: str) -> None:
+    """Generate start livestream response."""
+    path = f"/api/v5/devices/{device}/videostream/"
+    aresponses.add(
+        "api.skybell.network",
+        path,
+        "POST",
+        aresponses.Response(
+            status=201,
+            headers={"Content-Type": "application/json"},
+            text=load_fixture("device_start_livestream.json"),
+        ),
+    )
+
+
+def failed_livestream_response(aresponses: ResponsesMockServer, device: str) -> None:
+    """Generate start livestream failure response."""
+    path = f"/api/v5/devices/{device}/videostream/"
+    aresponses.add(
+        "api.skybell.network",
+        path,
+        "POST",
+        aresponses.Response(
+            status=401,
+            headers={"Content-Type": "application/json"},
+            text=load_fixture("livestream_failure.json"),
+        ),
+    )
+
+
+def stop_livestream_response(aresponses: ResponsesMockServer, device: str) -> None:
+    """Generate stop livestream response."""
+    path = f"/api/v5/devices/{device}/videostream/"
+    aresponses.add(
+        "api.skybell.network",
+        path,
+        "DELETE",
+        aresponses.Response(
+            status=200,
+            headers={"Content-Type": "application/json"},
+            text=load_fixture("device_stop_livestream.json"),
         ),
     )
 
@@ -1113,6 +1158,38 @@ async def test_async_delete_activity(
     await device.async_delete_activity(activity_id=activity_id)
     assert len(device._activities) == 2
     assert len(device._events) == 2
+
+    os.remove(client._cache_path)
+    assert not aresponses.assert_no_unused_routes()
+
+
+@pytest.mark.asyncio
+async def test_async_livestrean(
+    aresponses: ResponsesMockServer, client: Skybell
+) -> None:
+    """Test starting and stopping livestream."""
+
+    # Get the device
+    login_response(aresponses)
+    devices_response(aresponses)
+    data = await client.async_get_devices()
+    device = data[0]
+
+    # Test the livestream
+    start_livestream_response(aresponses, device._device_id)
+    result = await device.async_start_livestream()
+    assert "channelARN" in result
+
+    stop_livestream_response(aresponses, device._device_id)
+    result = await device.async_stop_livestream()
+    assert result is None
+
+    # Test the Access Exception when starting the livestream
+    device._device_json[CONST.SHARED] = True
+    device._device_json[CONST.SHARED_READ_ONLY] = True
+    failed_livestream_response(aresponses, device._device_id)
+    with pytest.raises(exceptions.SkybellAccessControlException):
+        await device.async_start_livestream()
 
     os.remove(client._cache_path)
     assert not aresponses.assert_no_unused_routes()
