@@ -10,7 +10,12 @@ from typing import TYPE_CHECKING, Any, cast
 import aiofiles
 
 from . import utils as UTILS
-from .exceptions import SkybellAccessControlException, SkybellException
+
+from .exceptions import (
+    SkybellAccessControlException,
+    SkybellException,
+)
+
 from .helpers import const as CONST
 from .helpers import errors as ERROR
 from .helpers.const import RESPONSE_ROWS
@@ -21,6 +26,7 @@ from .helpers.models import (  # isort:skip
     ActivityData,
     ActivityType,
     SettingsData,
+    LiveStreamConnectionData,
 )
 
 if TYPE_CHECKING:
@@ -321,6 +327,49 @@ class SkybellDevice:
             if act[CONST.ACTIVITY_ID] == activity_id:
                 self._activities.remove(act)
                 break
+
+    async def async_start_livestream(self,
+                                     force: bool = False
+                                     ) -> LiveStreamConnectionData:
+        """Request to start a live call using WebRTC.
+
+        Allows caller to establish a live audio and video WebRTC connection with
+        the SkyBell device.
+        Returns: LiveStreamConnectionData
+        Exceptions: SkybellException, SkybellAccessControlException
+        """
+
+        body_data: dict[str, str | int] = {
+            CONST.LIVESTREAM_FORCE_BODY: force,
+        }
+
+        url = str.replace(CONST.DEVICE_LIVESTREAM_URL, "$DEVID$", self.device_id)
+
+        response = await self._skybell.async_send_request(
+            url=url,
+            json=body_data,
+            method=CONST.HTTPMethod.POST,
+            retry=False,
+        )
+
+        return response
+
+    async def async_stop_livestream(self) -> None:
+        """Request to stop a live call using WebRTC.
+
+        Allows caller to end a live audio and video WebRTC connection with
+        the SkyBell device.
+        Exceptions: SkybellException
+        """
+        url = str.replace(CONST.DEVICE_LIVESTREAM_URL, "$DEVID$", self.device_id)
+
+        await self._skybell.async_send_request(
+            url=url,
+            method=CONST.HTTPMethod.DELETE,
+            retry=False,
+        )
+
+        return
 
     def _validate_setting(  # pylint:disable=too-many-branches # noqa: C901
         self, setting: str, value: bool | str | int | dict

@@ -28,6 +28,7 @@ from . import utils as UTILS
 from .device import SkybellDevice
 from .exceptions import (
     SkybellAuthenticationException,
+    SkybellAccessControlException,
     SkybellException,
     SkybellRequestException,
     SkybellUnknownResourceException,
@@ -339,6 +340,9 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
             if client_response.status == 401 or (
                 client_response.status == 403 and url == CONST.LOGIN_URL
             ):
+                if url.find(CONST.VIDEO_STREAM_PATH) > 0:
+                    raise SkybellAccessControlException(await client_response.text())
+
                 await self.async_update_cache({CONST.AUTHENTICATION_RESULT: {}})
                 raise SkybellAuthenticationException(await client_response.text())
             if client_response.status in (403, 404):

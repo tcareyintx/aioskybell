@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 
 class TimezoneData(dict):
     """Class for Timezone settings permitted for the device.
@@ -137,6 +139,7 @@ class ActivityData(dict):
     video_ready_time: str
 
 
+LiveStreamConnectionData = dict[str, Any]
 ActivityType = dict[str, ActivityData]
 DeviceType = dict[str, dict[str, ActivityType]]
 DevicesDict = dict[str, DeviceType]
