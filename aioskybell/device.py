@@ -84,7 +84,7 @@ class SkybellDevice:
             url += query
         response = await self._skybell.async_send_request(url)
         result = []
-        if response is not None:
+        if (response is not None and response):
             result = response.get(RESPONSE_ROWS, [])
         return result
 
@@ -100,19 +100,19 @@ class SkybellDevice:
         if refresh or device_json or not self._device_json:
             if get_devices:
                 device_json = await self._async_device_request()
-            UTILS.update(self._device_json, device_json or {})
+                UTILS.update(self._device_json, device_json or {})
 
         # The Snapshot image is the avatar of the doorbell.
         if refresh or snapshot_json or not self._snapshot_json:
-            result = await self._async_snapshot_request()
-            # Update the image for the avatar snapshot.
-            if result[CONST.PREVIEW_CREATED_AT] != self._snapshot_json.get(
-                CONST.PREVIEW_CREATED_AT, ""
-            ):
-                base64_string = result[CONST.PREVIEW_IMAGE]
-                self.images[CONST.SNAPSHOT] = b64decode(base64_string)
-            self._snapshot_json = result
-            UTILS.update(self._snapshot_json, snapshot_json or {})
+            response = await self._async_snapshot_request()
+            if response is not None and response:
+                # Update the image for the avatar snapshot.
+                if (response[CONST.PREVIEW_CREATED_AT]
+                        != self._snapshot_json.get(CONST.PREVIEW_CREATED_AT, None)):
+                    base64_string = response[CONST.PREVIEW_IMAGE]
+                    self.images[CONST.SNAPSHOT] = b64decode(base64_string)
+                self._snapshot_json = response
+                UTILS.update(self._snapshot_json, snapshot_json or {})
 
         if refresh:
             await self._async_update_activities()
@@ -221,7 +221,6 @@ class SkybellDevice:
     ) -> None:
         """Validate the settings and then send the POST request."""
 
-        full_update = False
         for key, value in settings.items():
             if self.is_readonly and key not in CONST.ACL_EXCLUSIONS:
                 _LOGGER.warning(
@@ -232,6 +231,7 @@ class SkybellDevice:
                     self, "Attempted setting with read-only scope."
                 )
             self._validate_setting(key, value)
+            full_update = False
             if key in CONST.FULL_UPDATE_REQUIRED:
                 full_update = True
 
@@ -240,13 +240,13 @@ class SkybellDevice:
                 json=settings, method=CONST.HTTPMethod.POST
             )
 
-        if result is not None:
-            # Several fields are outside are displayed outside settings
-            if full_update:
-                await self.async_update(get_devices=True)
-            else:
-                old_settings = self._device_json[CONST.SETTINGS]
-                UTILS.update(old_settings, result)
+            if result is not None and result:
+                # Several fields are outside are displayed outside settings
+                if full_update:
+                    await self.async_update(get_devices=True)
+                else:
+                    old_settings = self._device_json[CONST.SETTINGS]
+                    UTILS.update(old_settings, result)
 
     async def async_get_activity_video_url(self, video: str | None = None) -> str:
         """Get url for the video to download.
@@ -261,7 +261,8 @@ class SkybellDevice:
         if video:
             act_url = CONST.ACTIVITY_VIDEO_URL + video
             response = await self._skybell.async_send_request(act_url)
-            result = response.get(CONST.DOWNLOAD_URL, "")
+            if (response is not None and response):
+                result = response.get(CONST.DOWNLOAD_URL, "")
 
         return result
 
@@ -299,7 +300,9 @@ class SkybellDevice:
         """
         async with aiofiles.open(f"{path}_{event[CONST.EVENT_TIME]}.mp4", "wb") as file:
             url = await self.async_get_activity_video_url(event[CONST.VIDEO_URL])
-            await file.write(await self._skybell.async_send_request(url, retry=False))
+            response = await self._skybell.async_send_request(url, retry=False)
+            if response is not None and response:
+                await file.write(response)
         if delete:
             await self.async_delete_activity(event[CONST.ACTIVITY_ID])
 
@@ -316,17 +319,20 @@ class SkybellDevice:
             )
 
         act_url = str.replace(CONST.ACTIVITY_URL, "$ACTID$", activity_id)
-        await self._skybell.async_send_request(act_url, method=CONST.HTTPMethod.DELETE)
-
-        # Clean out the local events
-        for key, act in list(self._events.items()):
-            if act[CONST.ACTIVITY_ID] == activity_id:
-                self._events.pop(key)
-                break
-        for act in self._activities:
-            if act[CONST.ACTIVITY_ID] == activity_id:
-                self._activities.remove(act)
-                break
+        response = await self._skybell.async_send_request(
+            act_url,
+            method=CONST.HTTPMethod.DELETE
+        )
+        if response is not None and response:
+            # Clean out the local events
+            for key, act in list(self._events.items()):
+                if act[CONST.ACTIVITY_ID] == activity_id:
+                    self._events.pop(key)
+                    break
+            for act in self._activities:
+                if act[CONST.ACTIVITY_ID] == activity_id:
+                    self._activities.remove(act)
+                    break
 
     async def async_start_livestream(self,
                                      force: bool = False
@@ -351,8 +357,11 @@ class SkybellDevice:
             method=CONST.HTTPMethod.POST,
             retry=False,
         )
+        result = LiveStreamConnectionData()
+        if response is not None and response:
+            result = response
 
-        return response
+        return result
 
     async def async_stop_livestream(self) -> None:
         """Request to stop a live call using WebRTC.

@@ -104,7 +104,10 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
             await self.async_login()
 
         # Obtain the user data -  which will login
-        self._user = await self.async_send_request(CONST.USER_URL)
+        response = await self.async_send_request(CONST.USER_URL)
+        self._user = None
+        if response is not None and response:
+            self._user = response
 
         # Obtain the devices for the user
         devices = []
@@ -143,25 +146,25 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
             method=CONST.HTTPMethod.POST,
             retry=False,
         )
+        if response is not None and response:
+            _LOGGER.debug("Login Response: %s", response)
+            # Store the Authorization result
+            auth_result = response[CONST.AUTHENTICATION_RESULT]
+            # Add an expiration date
+            expires_in = auth_result[CONST.TOKEN_EXPIRATION]
+            expiration = UTILS.calculate_expiration(
+                expires_in=expires_in,
+                slack=CONST.EXPIRATION_SLACK,
+                refresh_cycle=CONST.REFRESH_CYCLE,
+            )
+            auth_result[CONST.EXPIRATION_DATE] = expiration
+            await self.async_update_cache({CONST.AUTHENTICATION_RESULT: auth_result})
 
-        _LOGGER.debug("Login Response: %s", response)
-        # Store the Authorization result
-        auth_result = response[CONST.AUTHENTICATION_RESULT]
-        # Add an expiration date
-        expires_in = auth_result[CONST.TOKEN_EXPIRATION]
-        expiration = UTILS.calculate_expiration(
-            expires_in=expires_in,
-            slack=CONST.EXPIRATION_SLACK,
-            refresh_cycle=CONST.REFRESH_CYCLE,
-        )
-        auth_result[CONST.EXPIRATION_DATE] = expiration
-        await self.async_update_cache({CONST.AUTHENTICATION_RESULT: auth_result})
-
-        if self._login_sleep:
-            _LOGGER.info("Login successful, waiting 5 seconds...")
-            await asyncio.sleep(5)
-        else:
-            _LOGGER.info("Login successful")
+            if self._login_sleep:
+                _LOGGER.info("Login successful, waiting 5 seconds...")
+                await asyncio.sleep(5)
+            else:
+                _LOGGER.info("Login successful")
 
     async def async_logout(self) -> bool:
         """Explicit Skybell logout."""
@@ -201,21 +204,25 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
             method=CONST.HTTPMethod.PUT,
             retry=False,
         )
+        if response is not None and response:
+            _LOGGER.debug("Token Refresh Response: %s", response)
+            # Add an expiration date
+            expires_in = response[CONST.TOKEN_EXPIRATION]
+            expiration = UTILS.calculate_expiration(
+                expires_in=expires_in,
+                slack=CONST.EXPIRATION_SLACK,
+                refresh_cycle=CONST.REFRESH_CYCLE,
+            )
+            response[CONST.EXPIRATION_DATE] = expiration
+            # Update the cache entities
+            UTILS.update(
+                cast(dict[str, Any], auth_result),
+                cast(dict[str, Any], response)
+            )
+            await self.async_update_cache(
+                {CONST.AUTHENTICATION_RESULT: auth_result})
+            _LOGGER.debug("Refresh successful")
 
-        _LOGGER.debug("Token Refresh Response: %s", response)
-
-        # Add an expiration date
-        expires_in = response[CONST.TOKEN_EXPIRATION]
-        expiration = UTILS.calculate_expiration(
-            expires_in=expires_in,
-            slack=CONST.EXPIRATION_SLACK,
-            refresh_cycle=CONST.REFRESH_CYCLE,
-        )
-        response[CONST.EXPIRATION_DATE] = expiration
-        # Update the cache entities
-        UTILS.update(cast(dict[str, Any], auth_result), cast(dict[str, Any], response))
-        await self.async_update_cache({CONST.AUTHENTICATION_RESULT: auth_result})
-        _LOGGER.debug("Refresh successful")
         return True
 
     async def async_get_devices(self, refresh: bool = False) -> list[SkybellDevice]:
@@ -227,18 +234,18 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
             _LOGGER.info("Updating all devices...")
             response = await self.async_send_request(CONST.DEVICES_URL)
             _LOGGER.debug("Get Devices Response: %s", response)
-            response_rows = response[CONST.RESPONSE_ROWS]
-            for device_json in response_rows:
-                device = self._devices.get(device_json[CONST.DEVICE_ID])
-
-                # No existing device, create a new one
-                if device:
-                    await device.async_update(
-                        {device_json[CONST.DEVICE_ID]: device_json}
-                    )
-                else:
-                    device = SkybellDevice(device_json, self)
-                    self._devices[device.device_id] = device
+            if response is not None and response:
+                response_rows = response[CONST.RESPONSE_ROWS]
+                for device_json in response_rows:
+                    device = self._devices.get(device_json[CONST.DEVICE_ID])
+                    # No existing device, create a new one
+                    if device:
+                        await device.async_update(
+                            {device_json[CONST.DEVICE_ID]: device_json}
+                        )
+                    else:
+                        device = SkybellDevice(device_json, self)
+                        self._devices[device.device_id] = device
 
         return list(self._devices.values())
 
@@ -384,9 +391,11 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
             raise SkybellRequestException from ex
         # Now we have a local response which could be
         # a json dictionary or byte stream
+        # If the json dictionary doesn't provide a data object
+        # return false
         result = local_response
         if isinstance(local_response, dict):
-            result = local_response.get(CONST.RESPONSE_DATA, {})
+            result = local_response.get(CONST.RESPONSE_DATA, False)
         return result
 
     def cache(self, key: str) -> str | dict[str, Any]:
