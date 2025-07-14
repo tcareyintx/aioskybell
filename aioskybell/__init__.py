@@ -105,7 +105,7 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
 
         # Obtain the user data -  which will login
         response = await self.async_send_request(CONST.USER_URL)
-        self._user = None
+        self._user = {}
         if response is not None and response:
             self._user = response
 
