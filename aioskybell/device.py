@@ -10,12 +10,7 @@ from typing import TYPE_CHECKING, Any, cast
 import aiofiles
 
 from . import utils as UTILS
-
-from .exceptions import (
-    SkybellAccessControlException,
-    SkybellException,
-)
-
+from .exceptions import SkybellAccessControlException, SkybellException
 from .helpers import const as CONST
 from .helpers import errors as ERROR
 from .helpers.const import RESPONSE_ROWS
@@ -84,7 +79,7 @@ class SkybellDevice:
             url += query
         response = await self._skybell.async_send_request(url)
         result = []
-        if (response is not None and response):
+        if response is not None and response:
             result = response.get(RESPONSE_ROWS, [])
         return result
 
@@ -107,8 +102,9 @@ class SkybellDevice:
             response = await self._async_snapshot_request()
             if response is not None and response:
                 # Update the image for the avatar snapshot.
-                if (response[CONST.PREVIEW_CREATED_AT]
-                        != self._snapshot_json.get(CONST.PREVIEW_CREATED_AT, None)):
+                if response[CONST.PREVIEW_CREATED_AT] != self._snapshot_json.get(
+                    CONST.PREVIEW_CREATED_AT, None
+                ):
                     base64_string = response[CONST.PREVIEW_IMAGE]
                     self.images[CONST.SNAPSHOT] = b64decode(base64_string)
                 self._snapshot_json = response
@@ -261,7 +257,7 @@ class SkybellDevice:
         if video:
             act_url = CONST.ACTIVITY_VIDEO_URL + video
             response = await self._skybell.async_send_request(act_url)
-            if (response is not None and response):
+            if response is not None and response:
                 result = response.get(CONST.DOWNLOAD_URL, "")
 
         return result
@@ -320,8 +316,7 @@ class SkybellDevice:
 
         act_url = str.replace(CONST.ACTIVITY_URL, "$ACTID$", activity_id)
         response = await self._skybell.async_send_request(
-            act_url,
-            method=CONST.HTTPMethod.DELETE
+            act_url, method=CONST.HTTPMethod.DELETE
         )
         if response is not None and response:
             # Clean out the local events
@@ -334,9 +329,9 @@ class SkybellDevice:
                     self._activities.remove(act)
                     break
 
-    async def async_start_livestream(self,
-                                     force: bool = False
-                                     ) -> LiveStreamConnectionData:
+    async def async_start_livestream(
+        self, force: bool = False
+    ) -> LiveStreamConnectionData:
         """Request to start a live call using WebRTC.
 
         Allows caller to establish a live audio and video WebRTC connection with

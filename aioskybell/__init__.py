@@ -27,8 +27,8 @@ from aiohttp.client_exceptions import (
 from . import utils as UTILS
 from .device import SkybellDevice
 from .exceptions import (
-    SkybellAuthenticationException,
     SkybellAccessControlException,
+    SkybellAuthenticationException,
     SkybellException,
     SkybellRequestException,
     SkybellUnknownResourceException,
@@ -216,11 +216,9 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
             response[CONST.EXPIRATION_DATE] = expiration
             # Update the cache entities
             UTILS.update(
-                cast(dict[str, Any], auth_result),
-                cast(dict[str, Any], response)
+                cast(dict[str, Any], auth_result), cast(dict[str, Any], response)
             )
-            await self.async_update_cache(
-                {CONST.AUTHENTICATION_RESULT: auth_result})
+            await self.async_update_cache({CONST.AUTHENTICATION_RESULT: auth_result})
             _LOGGER.debug("Refresh successful")
 
         return True
