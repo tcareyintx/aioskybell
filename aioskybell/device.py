@@ -816,7 +816,7 @@ class SkybellDevice:
         return settings_json.get(CONST.BASIC_MOTION, {})
 
     @property
-    def basic_motion_notify(self) -> bool or None:
+    def basic_motion_notify(self) -> bool | None:
         """Get devices basic motion notify."""
         bm = self.basic_motion
         result = None
@@ -825,7 +825,7 @@ class SkybellDevice:
         return result
 
     @property
-    def basic_motion_record(self) -> bool or None:
+    def basic_motion_record(self) -> bool | None:
         """Get devices basic motion record."""
         bm = self.basic_motion
         result = None
@@ -834,7 +834,7 @@ class SkybellDevice:
         return result
 
     @property
-    def basic_motion_fd_notify(self) -> bool or None:
+    def basic_motion_fd_notify(self) -> bool | None:
         """Get devices basic motion fd notify."""
         bm = self.basic_motion
         result = None
@@ -843,7 +843,7 @@ class SkybellDevice:
         return result
 
     @property
-    def basic_motion_fd_record(self) -> bool or None:
+    def basic_motion_fd_record(self) -> bool | None:
         """Get devices basic motion fd record."""
         bm = self.basic_motion
         result = None
@@ -852,7 +852,7 @@ class SkybellDevice:
         return result
 
     @property
-    def basic_motion_hbd_notify(self) -> bool or None:
+    def basic_motion_hbd_notify(self) -> bool | None:
         """Get devices basic motion hbd notify."""
         bm = self.basic_motion
         result = None
@@ -861,7 +861,7 @@ class SkybellDevice:
         return result
 
     @property
-    def basic_motion_hbd_record(self) -> bool or None:
+    def basic_motion_hbd_record(self) -> bool | None:
         """Get devices basic motion hbd record."""
         bm = self.basic_motion
         result = None

@@ -1254,9 +1254,7 @@ async def test_async_livestream(
 
 
 @pytest.mark.asyncio
-async def test_async_reboot(
-    aresponses: ResponsesMockServer, client: Skybell
-) -> None:
+async def test_async_reboot(aresponses: ResponsesMockServer, client: Skybell) -> None:
     """Test rebooting the device."""
 
     # Get the device
