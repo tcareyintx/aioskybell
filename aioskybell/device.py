@@ -196,7 +196,7 @@ class SkybellDevice:
         if key == CONST.NORMAL_LED:
             # Normal LED control of false has to reset the LED COLOR to Empty
             if not isinstance(value, bool):
-                raise SkybellException(self, value)
+                raise SkybellException(self, ERROR.INVALID_SETTING_VALUE, (key, value))
             key = CONST.LED_COLOR
             # If the Normal LED value is True - use the color
             # else clear the color
@@ -208,6 +208,20 @@ class SkybellDevice:
                 value = ""
         elif key == CONST.NAME:
             key = CONST.DEVICE_NAME
+        elif key in CONST.BASIC_MOTION_FIELDS:
+            bm = self.basic_motion.copy()
+            if not bm:
+                raise SkybellException(self, ERROR.INVALID_SETTING_VALUE, (key, value))
+            bm[key] = value
+            key = CONST.BASIC_MOTION
+            value = bm
+        elif key in CONST.TIME_ZONE_FIELDS:
+            loc = self.location.copy()
+            if not loc:
+                raise SkybellException(self, ERROR.INVALID_SETTING_VALUE, (key, value))
+            loc[key] = value
+            key = CONST.TIMEZONE_INFO
+            value = loc
 
         # Update the settings value for the key
         return await self._async_set_setting({key: value})
@@ -370,6 +384,22 @@ class SkybellDevice:
         await self._skybell.async_send_request(
             url=url,
             method=CONST.HTTPMethod.DELETE,
+            retry=False,
+        )
+
+        return
+
+    async def async_reboot_device(self) -> None:
+        """Request to reboot the device.
+
+        Device will reboot 10 - 60 seconds after successful command.
+        Exceptions: SkybellException
+        """
+        url = str.replace(CONST.DEVICE_REBOOT_URL, "$DEVID$", self.device_id)
+
+        await self._skybell.async_send_request(
+            url=url,
+            method=CONST.HTTPMethod.POST,
             retry=False,
         )
 
@@ -629,6 +659,33 @@ class SkybellDevice:
         return settings_json.get(CONST.TIMEZONE_INFO, {})
 
     @property
+    def location_lat(self) -> float | None:
+        """Get devices location latitude."""
+        loc = self.location
+        result = None
+        if loc:
+            result = loc[CONST.LOCATION_LAT]
+        return result
+
+    @property
+    def location_lon(self) -> float | None:
+        """Get devices location longitude."""
+        loc = self.location
+        result = None
+        if loc:
+            result = loc[CONST.LOCATION_LON]
+        return result
+
+    @property
+    def location_place(self) -> str:
+        """Get devices location place."""
+        loc = self.location
+        result = ""
+        if loc:
+            result = loc[CONST.LOCATION_PLACE]
+        return result
+
+    @property
     def button_pressed(self) -> bool:
         """Get the devices button pressed notification property."""
         settings_json = self._device_json.get(CONST.SETTINGS, {})
@@ -757,3 +814,57 @@ class SkybellDevice:
         """Get devices basic motion rules (recording, notification)."""
         settings_json = self._device_json.get(CONST.SETTINGS, {})
         return settings_json.get(CONST.BASIC_MOTION, {})
+
+    @property
+    def basic_motion_notify(self) -> bool or None:
+        """Get devices basic motion notify."""
+        bm = self.basic_motion
+        result = None
+        if bm:
+            result = bm[CONST.BASIC_MOTION_NOTIFY]
+        return result
+
+    @property
+    def basic_motion_record(self) -> bool or None:
+        """Get devices basic motion record."""
+        bm = self.basic_motion
+        result = None
+        if bm:
+            result = bm[CONST.BASIC_MOTION_RECORD]
+        return result
+
+    @property
+    def basic_motion_fd_notify(self) -> bool or None:
+        """Get devices basic motion fd notify."""
+        bm = self.basic_motion
+        result = None
+        if bm:
+            result = bm[CONST.BASIC_MOTION_FD_NOTIFY]
+        return result
+
+    @property
+    def basic_motion_fd_record(self) -> bool or None:
+        """Get devices basic motion fd record."""
+        bm = self.basic_motion
+        result = None
+        if bm:
+            result = bm[CONST.BASIC_MOTION_FD_RECORD]
+        return result
+
+    @property
+    def basic_motion_hbd_notify(self) -> bool or None:
+        """Get devices basic motion hbd notify."""
+        bm = self.basic_motion
+        result = None
+        if bm:
+            result = bm[CONST.BASIC_MOTION_HBD_NOTIFY]
+        return result
+
+    @property
+    def basic_motion_hbd_record(self) -> bool or None:
+        """Get devices basic motion hbd record."""
+        bm = self.basic_motion
+        result = None
+        if bm:
+            result = bm[CONST.BASIC_MOTION_HBD_RECORD]
+        return result

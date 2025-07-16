@@ -376,6 +376,36 @@ def stop_livestream_response(aresponses: ResponsesMockServer, device: str) -> No
     )
 
 
+def reboot_device_response(aresponses: ResponsesMockServer, device: str) -> None:
+    """Generate reboot device response."""
+    path = f"/api/v5/devices/{device}/reboot/"
+    aresponses.add(
+        "api.skybell.network",
+        path,
+        "POST",
+        aresponses.Response(
+            status=200,
+            headers={"Content-Type": "application/json"},
+            text=load_fixture("device_reboot.json"),
+        ),
+    )
+
+
+def failed_device_reboot_response(aresponses: ResponsesMockServer, device: str) -> None:
+    """Generate start reboot device failure response."""
+    path = f"/api/v5/devices/{device}/reboot/"
+    aresponses.add(
+        "api.skybell.network",
+        path,
+        "POST",
+        aresponses.Response(
+            status=401,
+            headers={"Content-Type": "application/json"},
+            text=load_fixture("device_reboot_failure.json"),
+        ),
+    )
+
+
 @pytest.mark.asyncio
 async def test_loop() -> None:
     """Test loop usage is handled correctly."""
@@ -556,6 +586,13 @@ async def test_async_get_devices(
         "motion_notify": True,
         "motion_record": True,
     }
+    assert device.basic_motion_fd_notify is True
+    assert device.basic_motion_fd_record is True
+    assert device.basic_motion_hbd_notify is True
+    assert device.basic_motion_hbd_record is True
+    assert device.basic_motion_notify is True
+    assert device.basic_motion_record is True
+
     assert device._device_json["created_at"] == "2020-10-20T14:35:00.745Z"
     assert (
         device._device_json["invite_token"]
@@ -615,6 +652,9 @@ async def test_async_get_devices(
         "place": "Anywhere",
     }
     assert device.location == {"mapLat": 1.0, "mapLong": -1.0, "place": "Anywhere"}
+    assert device.location_lat == 1.0
+    assert device.location_lon == -1.0
+    assert device.location_place == "Anywhere"
     assert settings["device_name"] == "FrontDoor"
     assert settings["button_pressed"] is True
     assert device.button_pressed is True
@@ -902,7 +942,7 @@ async def test_async_change_setting(
     with pytest.raises(exceptions.SkybellException):
         await device.async_set_setting(CONST.BASIC_MOTION, motion_dict)
 
-    # Validate the basic motion fields are boolean
+    # Validate the basic motion fields are boolean and missing data
     motion_dict = {
         CONST.BASIC_MOTION_NOTIFY: 4,
         CONST.BASIC_MOTION_RECORD: True,
@@ -913,6 +953,15 @@ async def test_async_change_setting(
     }
     with pytest.raises(exceptions.SkybellException):
         await device.async_set_setting(CONST.BASIC_MOTION, motion_dict)
+    with pytest.raises(exceptions.SkybellException):
+        await device.async_set_setting(CONST.BASIC_MOTION_NOTIFY, 4)
+
+    settings_json = device._device_json.get(CONST.SETTINGS, {})
+    bm = settings_json[CONST.BASIC_MOTION]
+    settings_json[CONST.BASIC_MOTION] = {}
+    with pytest.raises(exceptions.SkybellException):
+        await device.async_set_setting(CONST.BASIC_MOTION_NOTIFY, True)
+    settings_json[CONST.BASIC_MOTION] = bm
 
     # Validate the time zone fields
     tz_dict = {
@@ -933,7 +982,7 @@ async def test_async_change_setting(
     with pytest.raises(exceptions.SkybellException):
         await device.async_set_setting(CONST.TIMEZONE_INFO, tz_dict)
 
-    # Validate place is a string
+    # Validate place is a string and exceptions for missing data
     tz_dict = {
         CONST.LOCATION_LAT: 1.0,
         CONST.LOCATION_LON: -1.0,
@@ -941,6 +990,15 @@ async def test_async_change_setting(
     }
     with pytest.raises(exceptions.SkybellException):
         await device.async_set_setting(CONST.TIMEZONE_INFO, tz_dict)
+    with pytest.raises(exceptions.SkybellException):
+        await device.async_set_setting(CONST.LOCATION_PLACE, False)
+
+    settings_json = device._device_json.get(CONST.SETTINGS, {})
+    tz = settings_json[CONST.TIMEZONE_INFO]
+    settings_json[CONST.TIMEZONE_INFO] = {}
+    with pytest.raises(exceptions.SkybellException):
+        await device.async_set_setting(CONST.LOCATION_PLACE, "Anyplace")
+    settings_json[CONST.TIMEZONE_INFO] = tz
 
     # Test that PIR sensitivity is an integer
     with pytest.raises(exceptions.SkybellException):
@@ -1164,7 +1222,7 @@ async def test_async_delete_activity(
 
 
 @pytest.mark.asyncio
-async def test_async_livestrean(
+async def test_async_livestream(
     aresponses: ResponsesMockServer, client: Skybell
 ) -> None:
     """Test starting and stopping livestream."""
@@ -1190,6 +1248,34 @@ async def test_async_livestrean(
     failed_livestream_response(aresponses, device._device_id)
     with pytest.raises(exceptions.SkybellAccessControlException):
         await device.async_start_livestream()
+
+    os.remove(client._cache_path)
+    assert not aresponses.assert_no_unused_routes()
+
+
+@pytest.mark.asyncio
+async def test_async_reboot(
+    aresponses: ResponsesMockServer, client: Skybell
+) -> None:
+    """Test rebooting the device."""
+
+    # Get the device
+    login_response(aresponses)
+    devices_response(aresponses)
+    data = await client.async_get_devices()
+    device = data[0]
+
+    # Test the reboot
+    reboot_device_response(aresponses, device._device_id)
+    result = await device.async_reboot_device()
+    assert result is None
+
+    # Test the Access Exception when rebooting the device
+    device._device_json[CONST.SHARED] = True
+    device._device_json[CONST.SHARED_READ_ONLY] = True
+    failed_device_reboot_response(aresponses, device._device_id)
+    with pytest.raises(exceptions.SkybellAccessControlException):
+        await device.async_reboot_device()
 
     os.remove(client._cache_path)
     assert not aresponses.assert_no_unused_routes()

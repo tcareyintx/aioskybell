@@ -347,6 +347,8 @@ class Skybell:  # pylint:disable=too-many-instance-attributes
             ):
                 if url.find(CONST.VIDEO_STREAM_PATH) > 0:
                     raise SkybellAccessControlException(await client_response.text())
+                if url.find(CONST.REBOOT_PATH) > 0:
+                    raise SkybellAccessControlException(await client_response.text())
 
                 await self.async_update_cache({CONST.AUTHENTICATION_RESULT: {}})
                 raise SkybellAuthenticationException(await client_response.text())
