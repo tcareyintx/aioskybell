@@ -10,7 +10,7 @@ PASSWORD = "password"
 
 
 async def async_example():
-    """Example usage of aioskybell."""
+    """Provide an example for usimg aioskybell."""
     # Sign on to Skybell API
     async with Skybell(
         username=USER_NAME, password=PASSWORD, get_devices=True

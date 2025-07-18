@@ -4,6 +4,7 @@ Test Skybell device functionality.
 
 Tests the device initialization and attributes of the Skybell device class.
 """
+
 import os
 from asyncio.exceptions import TimeoutError as Timeout
 from datetime import datetime, timedelta
@@ -456,7 +457,6 @@ async def test_async_failed_login(aresponses: ResponsesMockServer) -> None:
 @pytest.mark.asyncio
 async def test_async_failed_request(aresponses: ResponsesMockServer) -> None:
     """Test failed request, failed resource request and retry login."""
-
     client = Skybell(
         EMAIL, PASSWORD, auto_login=True, get_devices=True, login_sleep=False
     )
@@ -492,7 +492,6 @@ async def test_async_failed_request(aresponses: ResponsesMockServer) -> None:
 @pytest.mark.asyncio
 async def test_async_initialize_and_logout(aresponses: ResponsesMockServer) -> None:
     """Test ;login initializing and logout."""
-
     # Login
     login_response(aresponses)
     client = Skybell(
@@ -780,7 +779,6 @@ async def test_async_change_setting(
     aresponses: ResponsesMockServer, client: Skybell
 ) -> None:
     """Test changing settings on device."""
-
     login_response(aresponses)
     devices_response(aresponses)
     data = await client.async_get_devices()
@@ -1097,7 +1095,6 @@ async def test_async_change_setting(
 @pytest.mark.asyncio
 async def test_async_shared(aresponses: ResponsesMockServer, client: Skybell) -> None:
     """Test changing settings on device."""
-
     login_response(aresponses)
     devices_readonly_response(aresponses)
     data = await client.async_get_devices()
@@ -1125,7 +1122,6 @@ async def test_async_get_activity_video_url(
 
     Test simulating a download of a video.
     """
-
     # Get the device with its activity
     login_response(aresponses)
     devices_response(aresponses)
@@ -1194,7 +1190,6 @@ async def test_async_delete_activity(
     aresponses: ResponsesMockServer, client: Skybell
 ) -> None:
     """Test deleting an activity."""
-
     # Get the device with its activity
     login_response(aresponses)
     devices_response(aresponses)
@@ -1226,7 +1221,6 @@ async def test_async_livestream(
     aresponses: ResponsesMockServer, client: Skybell
 ) -> None:
     """Test starting and stopping livestream."""
-
     # Get the device
     login_response(aresponses)
     devices_response(aresponses)
@@ -1256,7 +1250,6 @@ async def test_async_livestream(
 @pytest.mark.asyncio
 async def test_async_reboot(aresponses: ResponsesMockServer, client: Skybell) -> None:
     """Test rebooting the device."""
-
     # Get the device
     login_response(aresponses)
     devices_response(aresponses)
