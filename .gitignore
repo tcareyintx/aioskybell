@@ -14,3 +14,5 @@ dist
 .coverage
 .DS_Store
 .mypy_cache
+/.pydevproject
+/.project
